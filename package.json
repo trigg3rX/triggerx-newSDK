@@ -1,0 +1,32 @@
+{
+  "name": "sdk-triggerx",
+  "version": "0.1.0",
+  "description": "SDK for interacting with the TriggerX backend and smart contracts.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src --ext .ts"
+  },
+  "author": "",
+  "license": "MIT",
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [],
+  "dependencies": {
+    "axios": "^1.11.0",
+    "dotenv": "^17.2.1",
+    "ethers": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
+    "eslint": "^9.32.0",
+    "jest": "^30.0.5",
+    "ts-jest": "^29.4.0",
+    "typescript": "^5.8.3"
+  }
+}
