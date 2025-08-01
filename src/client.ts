@@ -3,18 +3,36 @@ import { getConfig } from './config';
 
 export class TriggerXClient {
   private client: AxiosInstance;
+  private apiKey: string; // Store the API key
 
-  constructor(config?: AxiosRequestConfig) {
+  constructor(apiKey: string, config?: AxiosRequestConfig) {
+    this.apiKey = apiKey; // Initialize the apiKey
     const baseConfig = getConfig();
     this.client = axios.create({
-      baseURL: baseConfig.apiUrl,
-      headers: { 'Authorization': `Bearer ${baseConfig.apiKey}` },
+      baseURL: config?.baseURL || baseConfig.apiUrl || 'http://localhost:9002',
+      headers: { 'Authorization': `Bearer ${this.apiKey}` }, // Set the API key here
       ...config,
     });
   }
 
+  // Method to get the API key
+  getApiKey(): string {
+    return this.apiKey;
+  }
+
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.client.get<T>(url, config);
+    return response.data;
+  }
+
+  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.post<T>(url, data, config);
+    return response.data;
+  }
+
+  // New PUT method
+  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.client.put<T>(url, data, config);
     return response.data;
   }
 } 

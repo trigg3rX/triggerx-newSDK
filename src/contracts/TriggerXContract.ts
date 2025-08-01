@@ -1,10 +1,10 @@
-import { ethers } from 'ethers';
+import { Contract, Provider } from 'ethers';
 
 export class TriggerXContract {
-  private contract: ethers.Contract;
+  private contract: Contract;
 
-  constructor(address: string, abi: any, provider: ethers.providers.Provider) {
-    this.contract = new ethers.Contract(address, abi, provider);
+  constructor(address: string, abi: any, provider: Provider) {
+    this.contract = new Contract(address, abi, provider);
   }
 
   async getTaskCount(): Promise<number> {
