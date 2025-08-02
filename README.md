@@ -173,35 +173,13 @@ const userData = await getUserData(client, userAddress);
 console.log(userData);
 ```
 
-### 6. Task Management
-
-- **Get tasks:**
-
-```typescript
-import { getTasks } from 'sdk-triggerx';
-
-const tasks = await getTasks(client);
-console.log(tasks);
-```
-
-- **Create a task:**
-
-```typescript
-import { createTask } from 'sdk-triggerx';
-
-const task = { name: 'My Task' };
-const createdTask = await createTask(client, task);
-console.log(createdTask);
-```
-
 ## API Reference
 
 See [src/types.ts](src/types.ts) for all input and output types.
 
 ## Project Structure
 
-```
-src/
+```src/
   index.ts           # Entry point
   client.ts          # API Client (Axios wrapper)
   config.ts          # Config management
@@ -212,7 +190,7 @@ src/
 test/                # Tests
 scripts/             # Utility scripts
 ```
-
 ## License
 
 MIT
+

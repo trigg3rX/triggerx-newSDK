@@ -6,7 +6,7 @@ import { withdrawTg } from '../src/api/withdrawTg';
 async function main() {
     // Replace with your actual provider URL and private key
     const providerUrl = 'https://opt-sepolia.g.alchemy.com/v2/m7cIDXzatSUYoiuE1xSY_TnUrK5j9-1W';
-    const privateKey = '3bd66a68dcde6ede3b38ced6de79489a447e0fac1648b749a5001b0aa167d089'; // Replace with your private key
+    const privateKey = ''; // Replace with your private key
     const provider = new ethers.JsonRpcProvider(providerUrl);
     const signer = new ethers.Wallet(privateKey, provider);
 

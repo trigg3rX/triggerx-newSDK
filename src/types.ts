@@ -50,6 +50,7 @@ export interface TimeBasedJobInput {
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
+  autotopupTG?: boolean;
 }
 
 export interface EventBasedJobInput {
@@ -72,6 +73,7 @@ export interface EventBasedJobInput {
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
+  autotopupTG?: boolean;
 }
 
 export interface ConditionBasedJobInput {
@@ -96,6 +98,7 @@ export interface ConditionBasedJobInput {
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
+  autotopupTG?: boolean;
 }
 
 // Internal type matching backend struct

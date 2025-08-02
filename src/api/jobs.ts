@@ -9,7 +9,8 @@ import {
 import { createJobOnChain } from '../contracts/JobRegistry';
 import { ethers, Signer } from 'ethers';
 import jobRegistryAbi from '../contracts/abi/JobRegistry.json';
-
+import { topupTg } from './topupTg';
+import { checkTgBalance } from './checkTgBalance';
 const JOB_ID = '300949528249665590178224313442040528409305273634097553067152835846309150732';
 const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
 const JOB_REGISTRY_ADDRESS = '0xdB66c11221234C6B19cCBd29868310c31494C21C'; // Set your fixed contract address here
@@ -192,82 +193,76 @@ export async function createJob(
       }
     }
   }
+  // Handle job_cost_prediction logic based on argType (static/dynamic)
+  // If static, set to 0.1. If dynamic, call backend API to get fee and ask user to proceed.
 
-  // // Handle job_cost_prediction logic based on argType (static/dynamic)
-  // // If static, set to 0.1. If dynamic, call backend API to get fee and ask user to proceed.
+  // Determine argType directly from user input
+  let argType: number = 1; // default to static
+  if ('argType' in jobInput) {
+    if (jobInput.argType === 'dynamic' || jobInput.argType === 2) {
+      argType = 2;
+    } else {
+      argType = 1;
+    }
+  }
 
-  // // Determine argType directly from user input
-  // let argType: number = 1; // default to static
-  // if ('argType' in jobInput) {
-  //   if (jobInput.argType === 'dynamic' || jobInput.argType === 2) {
-  //     argType = 2;
-  //   } else {
-  //     argType = 1;
-  //   }
-  // }
+  //if jobis time based then check the no of executions of the job from time frame and time interval by deviding time frame by time interval
+  let noOfExecutions: number = 1;
+  if ('scheduleType' in jobInput) {
+    noOfExecutions = jobInput.timeFrame / (jobInput.timeInterval ?? 0);
+  }
 
-  // // Set job_cost_prediction
-  // let job_cost_prediction: number = 0.1; // default for static
+  // Set job_cost_prediction
+  let job_cost_prediction: number = 0.1 * noOfExecutions; // default for static
 
-  // if (argType === 2) {
-  //   // Dynamic: call backend API to get fee
-  //   const ipfs_url = jobInput.dynamicArgumentsScriptUrl;
-  //   if (!ipfs_url) {
-  //     throw new Error('dynamicArgumentsScriptUrl is required for dynamic argType');
-  //   }
+  if (argType === 2) {
+    // Dynamic: call backend API to get fee
+    const ipfs_url = jobInput.dynamicArgumentsScriptUrl;
+    if (!ipfs_url) {
+      throw new Error('dynamicArgumentsScriptUrl is required for dynamic argType');
+    }
 
     
-  //   // Call backend API to get fee
-  //   let fee: number = 0;
-  //   try {
-  //     const feeRes = await client.get<any>(
-  //       '/api/fees',
-  //       { params: { ipfs_url } }
-  //     );
-  //     // The API now returns { total_fee: number }
-  //     if (feeRes && typeof feeRes.total_fee === 'number') {
-  //       fee = feeRes.total_fee;
-  //     } else if (feeRes && feeRes.data && typeof feeRes.data.total_fee === 'number') {
-  //       fee = feeRes.data.total_fee;
-  //     } else {
-  //       throw new Error('Invalid response from /api/fees: missing total_fee');
-  //     }
-  //   } catch (err) {
-  //     throw new Error('Failed to fetch job cost prediction: ' + (err as Error).message);
-  //   }
-  //   job_cost_prediction = fee;
+    // Call backend API to get fee
+    let fee: number = 0;
+    try {
+      const feeRes = await client.get<any>(
+        '/api/fees',
+        { params: { ipfs_url } }
+      );
+      // The API now returns { total_fee: number }
+      if (feeRes && typeof feeRes.total_fee === 'number') {
+        fee = feeRes.total_fee;
+      } else if (feeRes && feeRes.data && typeof feeRes.data.total_fee === 'number') {
+        fee = feeRes.data.total_fee;
+      } else {
+        throw new Error('Invalid response from /api/fees: missing total_fee');
+      }
+    } catch (err) {
+      throw new Error('Failed to fetch job cost prediction: ' + (err as Error).message);
+    }
+    job_cost_prediction = fee * noOfExecutions;
+  }
+    // Ask user if they want to proceed
+    // Since this is a library, we can't prompt in Node.js directly.
+    // We'll throw an error with the fee and let the caller handle the prompt/confirmation.
+    // If you want to automate, you can add a `proceed` flag to params in the future.
 
-  //   // Ask user if they want to proceed
-  //   // Since this is a library, we can't prompt in Node.js directly.
-  //   // We'll throw an error with the fee and let the caller handle the prompt/confirmation.
-  //   // If you want to automate, you can add a `proceed` flag to params in the future.
-
-  //   if (typeof (params as any).proceed === 'undefined') {
-  //     // User has not confirmed, throw error with fee info
-  //     throw new Error(
-  //       `Job cost prediction is ${fee}. Please confirm to proceed by passing { ...params, proceed: true }`
-  //     );
-  //   } else if (!(params as any).proceed) {
-  //     // User declined
-  //     return { success: false, error: 'User declined to proceed with job cost prediction fee.' };
-  //   }
-
-  //   // If user agreed, send the fee to the gas registry contract before proceeding
-  //   // We'll assume a fixed GAS_REGISTRY_ADDRESS and a payable fallback function
-  //   const GAS_REGISTRY_ADDRESS = '0xYourGasRegistryContractAddressHere'; // <-- Set your contract address
-
-  //   // Send the fee (in ETH) to the gas registry contract
-  //   // Assume fee is in ETH (number), convert to wei
-  //   const value = ethers.parseEther(fee.toString());
-  //   const tx = await signer.sendTransaction({
-  //     to: GAS_REGISTRY_ADDRESS,
-  //     value,
-  //   });
-  //   await tx.wait();
-  // }
-
-  // // Patch jobInput with job_cost_prediction for downstream usage
-  // (jobInput as any).jobCostPrediction = job_cost_prediction;
+    // Check if the user has enough TG to cover the job cost prediction
+    const tgBalance = await checkTgBalance(signer);
+    if (Number(tgBalance) < job_cost_prediction) {
+      // Check if user has enabled auto topup
+      // For each job type, autotopupTG should be present in jobInput
+      const autoTopupTG = (jobInput as any).autotopupTG === true;
+      if (!autoTopupTG) {
+        throw new Error(`Insufficient TG balance. Job cost prediction is ${job_cost_prediction}. Current TG balance: ${tgBalance}. Please set autotopupTG: true in jobInput.`);
+      } else {
+        // autotopupTG is true, automatically top up
+        await topupTg(job_cost_prediction, signer);
+      }
+    } 
+  // Patch jobInput with job_cost_prediction for downstream usage
+  (jobInput as any).jobCostPrediction = job_cost_prediction;
 
   const jobId = await createJobOnChain({
     jobTitle: jobTitle!,
