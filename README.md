@@ -1,41 +1,58 @@
-# sdk-triggerx
+# 🚀 TriggerX SDK
 
-SDK for interacting with the TriggerX backend and smart contracts.
+**SDK for interacting with the TriggerX backend and smart contracts.**  
+Supports job automation on EVM-compatible chains using time, event, or condition-based triggers.
 
-## Features
+---
 
-- Easy API integration for job and user management
-- Smart contract interaction for job creation
-- TypeScript support
-- Supports time-based, event-based, and condition-based jobs
+## ✨ Features
 
-## Installation
+- 🔧 Easy API integration for job and user management
+- 🔗 Smart contract interaction for job creation and deletion
+- 📅 Supports time-based, event-based, and condition-based jobs
+- 🔐 TypeScript support with clean types
+- 🧠 Dynamic argument fetching via external scripts (e.g., IPFS)
+
+---
+
+## 📦 Installation
 
 ```bash
 npm install sdk-triggerx
 ```
 
-## Usage
+---
+
+## 🛠️ Usage Guide
 
 ### 1. Initialize the Client
 
-```typescript
+```ts
 import { TriggerXClient } from 'sdk-triggerx';
 
 const client = new TriggerXClient('YOUR_API_KEY');
 ```
 
+---
+
 ### 2. Create a Job
 
-The SDK supports three types of jobs:
+#### Supported Job Types
 
-- **Time-based jobs** (static/dynamic arguments)
-- **Event-based jobs** (static/dynamic arguments)
-- **Condition-based jobs** (static/dynamic arguments)
+- `JobType.Time`: Interval or Cron-based triggers
+- `JobType.Event`: Smart contract event-based triggers
+- `JobType.Condition`: API or contract-based conditional triggers
 
-#### Example: Time-based Static Job
+#### Supported Argument Types
 
-```typescript
+- `ArgType.Static`: Hardcoded values
+- `ArgType.Dynamic`: Runtime values fetched from a script
+
+---
+
+#### 🕒 Example: Time-based Static Job
+
+```ts
 import { createJob, JobType, ArgType } from 'sdk-triggerx';
 
 const jobInput = {
@@ -68,9 +85,11 @@ const result = await createJob(client, { jobInput, signer });
 console.log(result);
 ```
 
-#### Example: Event-based Dynamic Job
+---
 
-```typescript
+#### 📟 Example: Event-based Dynamic Job
+
+```ts
 const jobInput = {
   jobType: JobType.Event,
   argType: ArgType.Dynamic,
@@ -99,9 +118,11 @@ const result = await createJob(client, { jobInput, signer });
 console.log(result);
 ```
 
-#### Example: Condition-based Job
+---
 
-```typescript
+#### 📈 Example: Condition-based Static Job
+
+```ts
 const jobInput = {
   jobType: JobType.Condition,
   argType: ArgType.Static,
@@ -132,20 +153,22 @@ const result = await createJob(client, { jobInput, signer });
 console.log(result);
 ```
 
-### 3. Get Job Data
+---
 
-- **Get all jobs for API key:**
+### 3. Fetch Job Data
 
-```typescript
+#### 🔍 Get All Jobs
+
+```ts
 import { getJobData } from 'sdk-triggerx';
 
 const jobs = await getJobData(client);
 console.log(jobs);
 ```
 
-- **Get job data by ID:**
+#### 🔎 Get Job by ID
 
-```typescript
+```ts
 import { getJobDataById } from 'sdk-triggerx';
 
 const jobId = 'YOUR_JOB_ID';
@@ -153,9 +176,11 @@ const jobData = await getJobDataById(client, jobId);
 console.log(jobData);
 ```
 
+---
+
 ### 4. Delete a Job
 
-```typescript
+```ts
 import { deleteJob } from 'sdk-triggerx';
 
 const jobId = 'YOUR_JOB_ID';
@@ -163,9 +188,11 @@ await deleteJob(client, jobId);
 console.log('Job deleted');
 ```
 
+---
+
 ### 5. Get User Data
 
-```typescript
+```ts
 import { getUserData } from 'sdk-triggerx';
 
 const userAddress = '0x...';
@@ -173,24 +200,50 @@ const userData = await getUserData(client, userAddress);
 console.log(userData);
 ```
 
-## API Reference
+---
 
-See [src/types.ts](src/types.ts) for all input and output types.
+## 📘 API Reference
 
-## Project Structure
+All input and output types are defined in:
 
-```src/
-  index.ts           # Entry point
-  client.ts          # API Client (Axios wrapper)
-  config.ts          # Config management
-  types.ts           # Shared interfaces/types
-  api/               # API modules
-  contracts/         # Contract logic & ABIs
-  utils/             # Utilities (errors, etc.)
-test/                # Tests
-scripts/             # Utility scripts
 ```
-## License
+src/types.ts
+```
 
-MIT
+Includes:
+
+- `JobInput`, `JobType`, `ArgType`
+- `ConditionType`, `ScheduleType`
+- `UserData`, `JobData`, etc.
+
+---
+
+## 🗂️ Project Structure
+
+```
+sdk-triggerx/
+├── index.ts              # Entry point
+├── client.ts             # Axios client wrapper
+├── config.ts             # Config and environment loader
+├── types.ts              # Shared interfaces and enums
+├── api/                  # Backend API modules
+├── contracts/            # Contract logic and ABIs
+├── utils/                # Error and helper utilities
+├── test/                 # Unit/integration tests
+└── scripts/              # Example/test scripts
+```
+
+---
+
+## ✅ Requirements
+
+- Node.js ≥ 16
+- ethers.js for signer interactions
+- IPFS-hosted script for dynamic arguments (optional)
+
+---
+
+## 📝 License
+
+**MIT License**
 
