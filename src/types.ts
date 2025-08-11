@@ -33,14 +33,12 @@ export interface TimeBasedJobInput {
   jobTitle: string;
   timeFrame: number;
   scheduleType: 'cron' | 'specific' | 'interval';
-  timeInterval?: number;
-  cronExpression?: string;
-  specificSchedule?: string;
+  timeInterval?: number; // required only if scheduleType === 'interval'
+  cronExpression?: string; // required only if scheduleType === 'cron'
+  specificSchedule?: string; // required only if scheduleType === 'specific'
   timezone: string;
-  recurring?: boolean;
-  jobCostPrediction: number;
-  createdChainId: string;
-  targetChainId: string;
+  // recurring removed for time-based jobs; always false
+  chainId: string; // single chain input; used for created/target
   targetContractAddress: string;
   targetFunction: string;
   abi: string;
@@ -58,9 +56,7 @@ export interface EventBasedJobInput {
   triggerEvent: string;
   timezone: string;
   recurring?: boolean;
-  jobCostPrediction: number;
-  createdChainId: string;
-  targetChainId: string;
+  chainId: string; // used for created/trigger/target chains
   targetContractAddress: string;
   targetFunction: string;
   abi: string;
@@ -80,9 +76,7 @@ export interface ConditionBasedJobInput {
   valueSourceUrl: string;
   timezone: string;
   recurring?: boolean;
-  jobCostPrediction: number;
-  createdChainId: string;
-  targetChainId: string;
+  chainId: string; // used for created/target chains
   targetContractAddress: string;
   targetFunction: string;
   abi: string;

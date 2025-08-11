@@ -58,27 +58,26 @@ const client = new TriggerXClient('YOUR_API_KEY');
 import { createJob, JobType, ArgType } from 'sdk-triggerx';
 
 const jobInput = {
-  jobType: JobType.Time,
-  argType: ArgType.Static,
-  jobTitle: 'My Time Job',
-  timeFrame: 36,
-  scheduleType: 'interval',
-  timeInterval: 33,
-  cronExpression: '0 0 * * *',
-  specificSchedule: '2025-01-01 00:00:00',
-  timezone: 'Asia/Calcutta',
-  recurring: false,
-  jobCostPrediction: 0.1,
-  createdChainId: '11155420',
-  targetChainId: '11155420',
-  targetContractAddress: '0x...',
-  targetFunction: 'incrementBy',
-  abi: '[...]',
-  isImua: true,
-  arguments: ['3'],
-  dynamicArgumentsScriptUrl: '',
-  // if more TG needed auto top-up TG must true for automatially top up TG
-  autotopupTG: true,
+  jobType: JobType.Time,               // Job type discriminator
+  argType: ArgType.Static,             // Static or Dynamic arguments
+
+  jobTitle: 'My Time Job',             // Human-readable job title
+  timeFrame: 36,                       // Duration the job stays active (hours)
+  scheduleType: 'interval',            // 'interval' | 'cron' | 'specific'
+  timeInterval: 33,                    // Required if scheduleType = 'interval' (seconds)
+  // cronExpression: '0 0 * * *',      // Required if scheduleType = 'cron' (CRON string)
+  // specificSchedule: '2025-01-01 00:00:00', // Required if scheduleType = 'specific' (datetime)
+  timezone: 'Asia/Calcutta',           // IANA timezone for scheduling
+
+  chainId: '11155420',                 // EVM chain for creation/target
+  targetContractAddress: '0x...',      // Target contract to call
+  targetFunction: 'incrementBy',       // Target function name
+  abi: '[...]',                        // JSON ABI string for target contract
+
+  isImua: true,                        // Optional feature flag
+  arguments: ['3'],                    // Target function args as strings
+  dynamicArgumentsScriptUrl: '',       // If ArgType.Dynamic, provide IPFS/URL here
+  autotopupTG: true,                   // Auto top-up TG if balance is low
 };
 
 const signer = /* ethers.Signer instance */;
@@ -92,25 +91,27 @@ console.log(result);
 
 ```ts
 const jobInput = {
-  jobType: JobType.Event,
-  argType: ArgType.Dynamic,
-  jobTitle: 'My Event Job',
-  timeFrame: 36,
-  recurring: true,
-  jobCostPrediction: 0.2,
-  timezone: 'Asia/Calcutta',
-  createdChainId: '11155420',
-  triggerChainId: '11155420',
-  triggerContractAddress: '0x...',
-  triggerEvent: 'CounterIncremented',
-  targetChainId: '11155420',
-  targetContractAddress: '0x...',
-  targetFunction: 'incrementBy',
-  abi: '[...]',
-  arguments: [],
-  dynamicArgumentsScriptUrl: 'https://your-ipfs-url',
-  isImua: true,
-  autotopupTG: true,
+  jobType: JobType.Event,                // Job type discriminator
+  argType: ArgType.Dynamic,              // Dynamic arguments fetched via script
+
+  jobTitle: 'My Event Job',              // Human-readable job title
+  timeFrame: 36,                         // Duration the job stays active (hours)
+  recurring: true,                       // Whether the event job recurs
+  timezone: 'Asia/Calcutta',             // IANA timezone (for metadata)
+
+  chainId: '11155420',                   // EVM chain for creation/target
+  triggerChainId: '11155420',            // Chain where the event is emitted
+  triggerContractAddress: '0x...',       // Event-emitting contract address
+  triggerEvent: 'CounterIncremented',    // Event name to watch
+
+  targetContractAddress: '0x...',        // Target contract to call
+  targetFunction: 'incrementBy',         // Target function name
+  abi: '[...]',                          // JSON ABI for target contract
+
+  arguments: [],                         // Target function args as strings
+  dynamicArgumentsScriptUrl: 'https://your-ipfs-url', // Script URL for dynamic args
+  isImua: true,                          // Optional feature flag
+  autotopupTG: true,                     // Auto top-up TG if balance is low
 };
 
 const result = await createJob(client, { jobInput, signer });
@@ -123,27 +124,29 @@ console.log(result);
 
 ```ts
 const jobInput = {
-  jobType: JobType.Condition,
-  argType: ArgType.Static,
-  jobTitle: 'My Condition Job',
-  timeFrame: 36,
-  recurring: false,
-  jobCostPrediction: 0.3,
-  timezone: 'Asia/Calcutta',
-  createdChainId: '11155420',
-  conditionType: 'greaterThan',
-  upperLimit: 100,
-  lowerLimit: 10,
-  valueSourceType: 'api',
-  valueSourceUrl: 'https://api.example.com/value',
-  targetChainId: '11155420',
-  targetContractAddress: '0x...',
-  targetFunction: 'incrementBy',
-  abi: '[...]',
-  arguments: ['5'],
-  dynamicArgumentsScriptUrl: '',
-  isImua: true,
-  autotopupTG: true,
+  jobType: JobType.Condition,           // Job type discriminator
+  argType: ArgType.Static,              // Static arguments
+
+  jobTitle: 'My Condition Job',         // Human-readable job title
+  timeFrame: 36,                        // Duration the job stays active (hours)
+  recurring: false,                     // Whether the condition job recurs
+  timezone: 'Asia/Calcutta',            // IANA timezone (for metadata)
+
+  chainId: '11155420',                  // EVM chain for creation/target
+  conditionType: 'greaterThan',         // Condition type e.g. 'greaterThan'
+  upperLimit: 100,                      // Upper threshold
+  lowerLimit: 10,                       // Lower threshold
+  valueSourceType: 'api',               // 'api' | 'http' | 'contract'
+  valueSourceUrl: 'https://api.example.com/value', // Source URL for condition
+
+  targetContractAddress: '0x...',       // Target contract to call
+  targetFunction: 'incrementBy',        // Target function name
+  abi: '[...]',                         // JSON ABI for target contract
+
+  arguments: ['5'],                     // Target function args as strings
+  dynamicArgumentsScriptUrl: '',        // If ArgType.Dynamic, provide IPFS/URL here
+  isImua: true,                         // Optional feature flag
+  autotopupTG: true,                    // Auto top-up TG if balance is low
 };
 
 const result = await createJob(client, { jobInput, signer });

@@ -19,6 +19,7 @@ export function toCreateJobDataFromTime(
   input: TimeBasedJobInput,
   balances: { etherBalance: bigint; tokenBalanceWei: bigint },
   userAddress: string,
+  jobCostPrediction: number,
 ): CreateJobData {
   return {
     job_id: JOB_ID,
@@ -29,15 +30,15 @@ export function toCreateJobDataFromTime(
     task_definition_id: input.dynamicArgumentsScriptUrl ? 2 : 1,
     custom: true,
     time_frame: input.timeFrame,
-    recurring: input.recurring ?? false,
-    job_cost_prediction: input.jobCostPrediction,
+    recurring: false,
+    job_cost_prediction: jobCostPrediction,
     timezone: input.timezone,
-    created_chain_id: input.createdChainId,
+    created_chain_id: input.chainId,
     schedule_type: input.scheduleType,
-    time_interval: input.timeInterval,
-    cron_expression: input.cronExpression,
-    specific_schedule: input.specificSchedule,
-    target_chain_id: input.targetChainId,
+    time_interval: input.scheduleType === 'interval' ? input.timeInterval : undefined,
+    cron_expression: input.scheduleType === 'cron' ? input.cronExpression : undefined,
+    specific_schedule: input.scheduleType === 'specific' ? input.specificSchedule : undefined,
+    target_chain_id: input.chainId,
     target_contract_address: input.targetContractAddress,
     target_function: input.targetFunction,
     abi: input.abi,
@@ -52,6 +53,7 @@ export function toCreateJobDataFromEvent(
   input: EventBasedJobInput,
   balances: { etherBalance: bigint; tokenBalanceWei: bigint },
   userAddress: string,
+  jobCostPrediction: number,
 ): CreateJobData {
   return {
     job_id: JOB_ID,
@@ -63,13 +65,13 @@ export function toCreateJobDataFromEvent(
     custom: true,
     time_frame: input.timeFrame,
     recurring: input.recurring ?? false,
-    job_cost_prediction: input.jobCostPrediction,
+    job_cost_prediction: jobCostPrediction,
     timezone: input.timezone,
-    created_chain_id: input.createdChainId,
-    trigger_chain_id: input.triggerChainId,
+    created_chain_id: input.chainId,
+    trigger_chain_id: (input as any).triggerChainId ?? input.chainId,
     trigger_contract_address: input.triggerContractAddress,
     trigger_event: input.triggerEvent,
-    target_chain_id: input.targetChainId,
+    target_chain_id: input.chainId,
     target_contract_address: input.targetContractAddress,
     target_function: input.targetFunction,
     abi: input.abi,
@@ -84,6 +86,7 @@ export function toCreateJobDataFromCondition(
   input: ConditionBasedJobInput,
   balances: { etherBalance: bigint; tokenBalanceWei: bigint },
   userAddress: string,
+  jobCostPrediction: number,
 ): CreateJobData {
   return {
     job_id: JOB_ID,
@@ -95,15 +98,15 @@ export function toCreateJobDataFromCondition(
     custom: true,
     time_frame: input.timeFrame,
     recurring: input.recurring ?? false,
-    job_cost_prediction: input.jobCostPrediction,
+    job_cost_prediction: jobCostPrediction,
     timezone: input.timezone,
-    created_chain_id: input.createdChainId,
+    created_chain_id: input.chainId,
     condition_type: input.conditionType,
     upper_limit: input.upperLimit,
     lower_limit: input.lowerLimit,
     value_source_type: input.valueSourceType,
     value_source_url: input.valueSourceUrl,
-    target_chain_id: input.targetChainId,
+    target_chain_id: input.chainId,
     target_contract_address: input.targetContractAddress,
     target_function: input.targetFunction,
     abi: input.abi,
@@ -171,6 +174,19 @@ export async function createJob(
   if ('timeFrame' in jobInput) timeFrame = jobInput.timeFrame;
   if ('targetContractAddress' in jobInput) targetContractAddress = jobInput.targetContractAddress;
 
+  // Validate schedule-specific fields for time-based jobs
+  if ('scheduleType' in jobInput) {
+    if (jobInput.scheduleType === 'interval' && (jobInput.timeInterval === undefined || jobInput.timeInterval === null)) {
+      throw new Error('timeInterval is required when scheduleType is interval');
+    }
+    if (jobInput.scheduleType === 'cron' && !jobInput.cronExpression) {
+      throw new Error('cronExpression is required when scheduleType is cron');
+    }
+    if (jobInput.scheduleType === 'specific' && !jobInput.specificSchedule) {
+      throw new Error('specificSchedule is required when scheduleType is specific');
+    }
+  }
+
   // Infer jobType from jobInput
   if ('scheduleType' in jobInput) {
     jobType = jobInput.dynamicArgumentsScriptUrl ? 2 : 1; // Time-based job
@@ -207,6 +223,7 @@ export async function createJob(
       }
     }
   }
+
   // Handle job_cost_prediction logic based on argType (static/dynamic)
   // If static, set to 0.1. If dynamic, call backend API to get fee and ask user to proceed.
 
@@ -299,11 +316,11 @@ export async function createJob(
   let jobData: CreateJobData;
   const balances = { etherBalance, tokenBalanceWei };
   if ('scheduleType' in jobInput) {
-    jobData = toCreateJobDataFromTime(jobInput as TimeBasedJobInput, balances, userAddress);
+    jobData = toCreateJobDataFromTime(jobInput as TimeBasedJobInput, balances, userAddress, job_cost_prediction);
   } else if ('triggerChainId' in jobInput) {
-    jobData = toCreateJobDataFromEvent(jobInput as EventBasedJobInput, balances, userAddress);
+    jobData = toCreateJobDataFromEvent(jobInput as EventBasedJobInput, balances, userAddress, job_cost_prediction);
   } else {
-    jobData = toCreateJobDataFromCondition(jobInput as ConditionBasedJobInput, balances, userAddress);
+    jobData = toCreateJobDataFromCondition(jobInput as ConditionBasedJobInput, balances, userAddress, job_cost_prediction);
   }
   // 3. Set the job_id from contract
   jobData.job_id = jobId;
