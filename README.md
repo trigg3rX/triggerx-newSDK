@@ -61,9 +61,6 @@ import { createJob, JobType, ArgType } from 'sdk-triggerx';
 const jobInput = {
   jobType: JobType.Time,
   argType: ArgType.Static,
-  userAddress: '0x...',
-  etherBalance: 10000000000000000,
-  tokenBalance: 10000000000000000000,
   jobTitle: 'My Time Job',
   timeFrame: 36,
   scheduleType: 'interval',
@@ -81,6 +78,8 @@ const jobInput = {
   isImua: true,
   arguments: ['3'],
   dynamicArgumentsScriptUrl: '',
+  // if more TG needed auto top-up TG must true for automatially top up TG
+  autotopupTG: true,
 };
 
 const signer = /* ethers.Signer instance */;
@@ -96,9 +95,6 @@ console.log(result);
 const jobInput = {
   jobType: JobType.Event,
   argType: ArgType.Dynamic,
-  userAddress: '0x...',
-  etherBalance: 10000000000000000,
-  tokenBalance: 10000000000000000000,
   jobTitle: 'My Event Job',
   timeFrame: 36,
   recurring: true,
@@ -115,6 +111,7 @@ const jobInput = {
   arguments: [],
   dynamicArgumentsScriptUrl: 'https://your-ipfs-url',
   isImua: true,
+  autotopupTG: true,
 };
 
 const result = await createJob(client, { jobInput, signer });
@@ -129,9 +126,6 @@ console.log(result);
 const jobInput = {
   jobType: JobType.Condition,
   argType: ArgType.Static,
-  userAddress: '0x...',
-  etherBalance: 10000000000000000,
-  tokenBalance: 10000000000000000000,
   jobTitle: 'My Condition Job',
   timeFrame: 36,
   recurring: false,
@@ -150,6 +144,7 @@ const jobInput = {
   arguments: ['5'],
   dynamicArgumentsScriptUrl: '',
   isImua: true,
+  autotopupTG: true,
 };
 
 const result = await createJob(client, { jobInput, signer });
