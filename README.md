@@ -31,10 +31,9 @@ npm install sdk-triggerx
 import { TriggerXClient } from 'sdk-triggerx';
 
 const client = new TriggerXClient('YOUR_API_KEY');
-
-👉 To get your API key, visit: [https://app.triggerx.network/generate-api](https://app.triggerx.network/generate-api)
-
 ```
+
+- To get your API key, visit: [Generate API Key](https://app.triggerx.network/generate-api)
 
 ---
 
