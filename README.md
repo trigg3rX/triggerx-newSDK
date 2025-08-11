@@ -50,6 +50,16 @@ const client = new TriggerXClient('YOUR_API_KEY');
 - `ArgType.Static`: Hardcoded values
 - `ArgType.Dynamic`: Runtime values fetched from a script
 
+#### Supported Condition Types (for `conditionType`)
+
+- `greater_than`
+- `less_than`
+- `between`
+- `equals`
+- `not_equals`
+- `greater_equal`
+- `less_equal`
+
 ---
 
 #### 🕒 Example: Time-based Static Job
@@ -133,7 +143,7 @@ const jobInput = {
   timezone: 'Asia/Calcutta',            // IANA timezone (for metadata)
 
   chainId: '11155420',                  // EVM chain for creation/target
-  conditionType: 'greaterThan',         // Condition type e.g. 'greaterThan'
+  conditionType: 'greater_than',        // One of the supported condition types 'greater_than' | 'less_than' |'between' | 'equals' | 'not_equals' | 'greater_equal' | 'less_equal'
   upperLimit: 100,                      // Upper threshold
   lowerLimit: 10,                       // Lower threshold
   valueSourceType: 'api',               // 'api' | 'http' | 'contract'

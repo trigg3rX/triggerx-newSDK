@@ -69,7 +69,7 @@ export interface EventBasedJobInput {
 export interface ConditionBasedJobInput {
   jobTitle: string;
   timeFrame: number;
-  conditionType: string;
+  conditionType: 'greater_than' | 'less_than' | 'between' | 'equals' | 'not_equals' | 'greater_equal' | 'less_equal';
   upperLimit: number;
   lowerLimit: number;
   valueSourceType: string;
