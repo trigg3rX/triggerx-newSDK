@@ -9,7 +9,7 @@ export class TriggerXClient {
     this.apiKey = apiKey; // Initialize the apiKey
     const baseConfig = getConfig();
     this.client = axios.create({
-      baseURL: config?.baseURL || baseConfig.apiUrl || 'http://localhost:9002',
+      baseURL: config?.baseURL || baseConfig.apiUrl || 'https://data.triggerx.network',  //http://localhost:9002
       headers: { 'Authorization': `Bearer ${this.apiKey}` }, // Set the API key here
       ...config,
     });
