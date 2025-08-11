@@ -15,12 +15,16 @@ const JOB_ID = '3009495282496655901782243134420405284093052736340975530671528358
 const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
 const JOB_REGISTRY_ADDRESS = '0xdB66c11221234C6B19cCBd29868310c31494C21C'; // Set your fixed contract address here
 
-export function toCreateJobDataFromTime(input: TimeBasedJobInput): CreateJobData {
+export function toCreateJobDataFromTime(
+  input: TimeBasedJobInput,
+  balances: { etherBalance: bigint; tokenBalanceWei: bigint },
+  userAddress: string,
+): CreateJobData {
   return {
     job_id: JOB_ID,
-    user_address: input.userAddress,
-    ether_balance: input.etherBalance,
-    token_balance: input.tokenBalance,
+    user_address: userAddress,
+    ether_balance: balances.etherBalance,
+    token_balance: balances.tokenBalanceWei,
     job_title: input.jobTitle,
     task_definition_id: input.dynamicArgumentsScriptUrl ? 2 : 1,
     custom: true,
@@ -44,12 +48,16 @@ export function toCreateJobDataFromTime(input: TimeBasedJobInput): CreateJobData
   };
 }
 
-export function toCreateJobDataFromEvent(input: EventBasedJobInput): CreateJobData {
+export function toCreateJobDataFromEvent(
+  input: EventBasedJobInput,
+  balances: { etherBalance: bigint; tokenBalanceWei: bigint },
+  userAddress: string,
+): CreateJobData {
   return {
     job_id: JOB_ID,
-    user_address: input.userAddress,
-    ether_balance: input.etherBalance,
-    token_balance: input.tokenBalance,
+    user_address: userAddress,
+    ether_balance: balances.etherBalance,
+    token_balance: balances.tokenBalanceWei,
     job_title: input.jobTitle,
     task_definition_id: input.dynamicArgumentsScriptUrl ? 4 : 3,
     custom: true,
@@ -72,12 +80,16 @@ export function toCreateJobDataFromEvent(input: EventBasedJobInput): CreateJobDa
   };
 }
 
-export function toCreateJobDataFromCondition(input: ConditionBasedJobInput): CreateJobData {
+export function toCreateJobDataFromCondition(
+  input: ConditionBasedJobInput,
+  balances: { etherBalance: bigint; tokenBalanceWei: bigint },
+  userAddress: string,
+): CreateJobData {
   return {
     job_id: JOB_ID,
-    user_address: input.userAddress,
-    ether_balance: input.etherBalance,
-    token_balance: input.tokenBalance,
+    user_address: userAddress,
+    ether_balance: balances.etherBalance,
+    token_balance: balances.tokenBalanceWei,
     job_title: input.jobTitle,
     task_definition_id: input.dynamicArgumentsScriptUrl ? 6 : 5,
     custom: true,
@@ -151,6 +163,8 @@ export async function createJob(
 
   // Use the API key from the client instance
   const apiKey = client.getApiKey();
+
+  const userAddress = await signer.getAddress();
 
   let jobTitle: string, timeFrame: number, targetContractAddress: string, jobType: number;
   if ('jobTitle' in jobInput) jobTitle = jobInput.jobTitle;
@@ -249,7 +263,7 @@ export async function createJob(
     // If you want to automate, you can add a `proceed` flag to params in the future.
 
     // Check if the user has enough TG to cover the job cost prediction
-    const tgBalance = await checkTgBalance(signer);
+    const { tgBalanceWei, tgBalance } = await checkTgBalance(signer);
     if (Number(tgBalance) < job_cost_prediction) {
       // Check if user has enabled auto topup
       // For each job type, autotopupTG should be present in jobInput
@@ -258,9 +272,15 @@ export async function createJob(
         throw new Error(`Insufficient TG balance. Job cost prediction is ${job_cost_prediction}. Current TG balance: ${tgBalance}. Please set autotopupTG: true in jobInput.`);
       } else {
         // autotopupTG is true, automatically top up
-        await topupTg(job_cost_prediction, signer);
+        const requiredTG = Math.ceil(job_cost_prediction * 1000); // 1 TG = 0.001 ETH
+        await topupTg(requiredTG, signer);
       }
-    } 
+    }
+
+  // Compute balances to store with the job
+  const tokenBalanceWei = tgBalanceWei;
+  const etherBalance = tokenBalanceWei / 1000n;
+
   // Patch jobInput with job_cost_prediction for downstream usage
   (jobInput as any).jobCostPrediction = job_cost_prediction;
 
@@ -277,21 +297,29 @@ export async function createJob(
 
   // 2. Convert input to CreateJobData
   let jobData: CreateJobData;
+  const balances = { etherBalance, tokenBalanceWei };
   if ('scheduleType' in jobInput) {
-    jobData = toCreateJobDataFromTime(jobInput as TimeBasedJobInput);
+    jobData = toCreateJobDataFromTime(jobInput as TimeBasedJobInput, balances, userAddress);
   } else if ('triggerChainId' in jobInput) {
-    jobData = toCreateJobDataFromEvent(jobInput as EventBasedJobInput);
+    jobData = toCreateJobDataFromEvent(jobInput as EventBasedJobInput, balances, userAddress);
   } else {
-    jobData = toCreateJobDataFromCondition(jobInput as ConditionBasedJobInput);
+    jobData = toCreateJobDataFromCondition(jobInput as ConditionBasedJobInput, balances, userAddress);
   }
   // 3. Set the job_id from contract
   jobData.job_id = jobId;
 
   // 4. Call the API
   try {
+    // Ensure JSON-serializable payload (use numbers for balances)
+    const jobDataForApi = {
+      ...jobData,
+      ether_balance: typeof jobData.ether_balance === 'bigint' ? Number(jobData.ether_balance) : Number(jobData.ether_balance),
+      token_balance: typeof jobData.token_balance === 'bigint' ? Number(jobData.token_balance) : Number(jobData.token_balance),
+    } as any;
+
     const res = await client.post<any>(
       '/api/jobs',
-      [jobData],
+      [jobDataForApi],
       {
         headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
       }

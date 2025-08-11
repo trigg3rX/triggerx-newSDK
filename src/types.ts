@@ -30,9 +30,6 @@ export type CreateJobInput =
 
 // User-facing input types (without jobType/argType)
 export interface TimeBasedJobInput {
-  userAddress: string;
-  etherBalance: BigInt | number;
-  tokenBalance: BigInt | number;
   jobTitle: string;
   timeFrame: number;
   scheduleType: 'cron' | 'specific' | 'interval';
@@ -54,9 +51,6 @@ export interface TimeBasedJobInput {
 }
 
 export interface EventBasedJobInput {
-  userAddress: string;
-  etherBalance: BigInt | number;
-  tokenBalance: BigInt | number;
   jobTitle: string;
   timeFrame: number;
   triggerChainId: string;
@@ -77,9 +71,6 @@ export interface EventBasedJobInput {
 }
 
 export interface ConditionBasedJobInput {
-  userAddress: string;
-  etherBalance: BigInt | number;
-  tokenBalance: BigInt | number;
   jobTitle: string;
   timeFrame: number;
   conditionType: string;
@@ -199,6 +190,7 @@ export interface EventJobData {
   trigger_chain_id: string;
   trigger_contract_address: string;
   trigger_event: string;
+  timezone: string;
   target_chain_id: string;
   target_contract_address: string;
   target_function: string;
@@ -218,10 +210,11 @@ export interface ConditionJobData {
   updated_at: Date; // Assuming time.Time is represented as Date
   recurring: boolean;
   condition_type: string;
-  upper_limit: number; // Assuming float64 is represented as number
-  lower_limit: number; // Assuming float64 is represented as number
+  upper_limit: number;
+  lower_limit: number;
   value_source_type: string;
   value_source_url: string;
+  timezone: string;
   target_chain_id: string;
   target_contract_address: string;
   target_function: string;

@@ -13,15 +13,15 @@ export const checkTgBalance = async (signer: ethers.Signer) => {
     // We'll convert TGbalance from wei to ETH
     // If balance is an array: [ethSpent, TGbalance]
     // If balance is an object: { ethSpent, TGbalance }
-    let tgBalanceWei;
+    let tgBalanceWei: bigint;
     if (Array.isArray(balance)) {
-        tgBalanceWei = balance[1];
+        tgBalanceWei = balance[1] as bigint;
     } else if (balance && balance.TGbalance !== undefined) {
-        tgBalanceWei = balance.TGbalance;
+        tgBalanceWei = balance.TGbalance as bigint;
     } else {
         throw new Error('Unexpected balance format');
     }
-    const tgBalanceEth = ethers.formatEther(tgBalanceWei);
-    console.log('tgBalanceEth', tgBalanceEth);
-    return tgBalanceEth;
+    const tgBalance = ethers.formatEther(tgBalanceWei);
+    console.log('tgBalanceEth', tgBalance);
+    return { tgBalanceWei, tgBalance };
 };
