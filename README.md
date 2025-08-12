@@ -72,7 +72,7 @@ const jobInput = {
   argType: ArgType.Static,             // Static or Dynamic arguments
 
   jobTitle: 'My Time Job',             // Human-readable job title
-  timeFrame: 36,                       // Duration the job stays active (hours)
+  timeFrame: 36,                       // Duration the job stays active (seconds)
   scheduleType: 'interval',            // 'interval' | 'cron' | 'specific'
   timeInterval: 33,                    // Required if scheduleType = 'interval' (seconds)
   // cronExpression: '0 0 * * *',      // Required if scheduleType = 'cron' (CRON string)
@@ -84,7 +84,7 @@ const jobInput = {
   targetFunction: 'incrementBy',       // Target function name
   abi: '[...]',                        // JSON ABI string for target contract
 
-  isImua: true,                        // Optional feature flag
+  isImua: false,                        // Optional feature flag
   arguments: ['3'],                    // Target function args as strings
   dynamicArgumentsScriptUrl: '',       // If ArgType.Dynamic, provide IPFS/URL here
   autotopupTG: true,                   // Auto top-up TG if balance is low
@@ -105,7 +105,7 @@ const jobInput = {
   argType: ArgType.Dynamic,              // Dynamic arguments fetched via script
 
   jobTitle: 'My Event Job',              // Human-readable job title
-  timeFrame: 36,                         // Duration the job stays active (hours)
+  timeFrame: 36,                         // Duration the job stays active (seconds)
   recurring: true,                       // Whether the event job recurs
   timezone: 'Asia/Calcutta',             // IANA timezone (for metadata)
 
@@ -120,7 +120,7 @@ const jobInput = {
 
   arguments: [],                         // Target function args as strings
   dynamicArgumentsScriptUrl: 'https://your-ipfs-url', // Script URL for dynamic args
-  isImua: true,                          // Optional feature flag
+  isImua: false,                          // Optional feature flag
   autotopupTG: true,                     // Auto top-up TG if balance is low
 };
 
@@ -138,7 +138,7 @@ const jobInput = {
   argType: ArgType.Static,              // Static arguments
 
   jobTitle: 'My Condition Job',         // Human-readable job title
-  timeFrame: 36,                        // Duration the job stays active (hours)
+  timeFrame: 36,                        // Duration the job stays active (seconds)
   recurring: false,                     // Whether the condition job recurs
   timezone: 'Asia/Calcutta',            // IANA timezone (for metadata)
 
@@ -146,7 +146,7 @@ const jobInput = {
   conditionType: 'greater_than',        // One of the supported condition types 'greater_than' | 'less_than' |'between' | 'equals' | 'not_equals' | 'greater_equal' | 'less_equal'
   upperLimit: 100,                      // Upper threshold
   lowerLimit: 10,                       // Lower threshold
-  valueSourceType: 'api',               // 'api' | 'http' | 'contract'
+  valueSourceType: 'api',               // 'api'
   valueSourceUrl: 'https://api.example.com/value', // Source URL for condition
 
   targetContractAddress: '0x...',       // Target contract to call
@@ -155,7 +155,7 @@ const jobInput = {
 
   arguments: ['5'],                     // Target function args as strings
   dynamicArgumentsScriptUrl: '',        // If ArgType.Dynamic, provide IPFS/URL here
-  isImua: true,                         // Optional feature flag
+  isImua: false,                         // Optional feature flag
   autotopupTG: true,                    // Auto top-up TG if balance is low
 };
 
@@ -228,22 +228,6 @@ Includes:
 
 ---
 
-## 🗂️ Project Structure
-
-```
-sdk-triggerx/
-├── index.ts              # Entry point
-├── client.ts             # Axios client wrapper
-├── config.ts             # Config and environment loader
-├── types.ts              # Shared interfaces and enums
-├── api/                  # Backend API modules
-├── contracts/            # Contract logic and ABIs
-├── utils/                # Error and helper utilities
-├── test/                 # Unit/integration tests
-└── scripts/              # Example/test scripts
-```
-
----
 
 ## ✅ Requirements
 
