@@ -11,7 +11,7 @@ async function main() {
     const jobInput: CreateJobInput = {
         jobType: JobType.Time,
         argType: ArgType.Static,
-        jobTitle: 'SDK Test Time Job',
+        jobTitle: 'SDK Test Time Job for mainnet',
         timeFrame: 36,
         scheduleType: 'interval',
         timeInterval: 33,
@@ -47,6 +47,22 @@ async function main() {
     //     isImua: true,
     //     arguments: ['5'],
     //     dynamicArgumentsScriptUrl: '',
+    // };
+
+    // // Example: Event-based static job
+    // const eventJobInput: CreateJobInput = {
+    //     jobType: JobType.Event,
+    //     argType: ArgType.Static,
+    //     jobTitle: 'SDK Test Event Job',
+    //     timeFrame: 25,
+    //     triggerChainId: '11155420',
+    //     triggerContractAddress: '0x49a81A591afdDEF973e6e49aaEa7d76943ef234C',
+    //     triggerEvent: 'CounterIncremented(uint256,uint256,uint256)',
+    //     timezone: 'Asia/Calcutta',
+    //     chainId: '11155420',
+    //     targetContractAddress: '0x49a81A591afdDEF973e6e49aaEa7d76943ef234C',
+    //     targetFunction: 'incrementBy',
+    //     abi: '[{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"previousValue","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newValue","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"incrementAmount","type":"uint256"}],"name":"CounterIncremented","type":"event"},{"inputs":[],"name":"getCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"increment","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"incrementBy","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
     // };
 
     // To test, you can call createJob with this input as well:
