@@ -11,7 +11,7 @@ export const withdrawTg = async (
     signer: ethers.Signer,
     amountTG: string | ethers.BigNumberish
 ) => {
-    const gasRegistryContractAddress = process.env.GAS_REGISTRY_CONTRACT_ADDRESS as string || '0x85ea3eB894105bD7e7e2A8D34cf66C8E8163CD2a';
+    const gasRegistryContractAddress = process.env.GAS_REGISTRY_CONTRACT_ADDRESS as string || '0x204F9278D6BB7714D7A40842423dFd5A27cC1b88';
     if (!gasRegistryContractAddress) {
         throw new Error('GAS_REGISTRY_CONTRACT_ADDRESS is not set in the environment variables');
     }

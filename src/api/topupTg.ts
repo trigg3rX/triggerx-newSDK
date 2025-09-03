@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import gasRegistryAbi from '../contracts/abi/GasRegistry.json';
 
 export const topupTg = async (tgAmount: number, signer: ethers.Signer) => {
-    const gasRegistryContractAddress = process.env.GAS_REGISTRY_CONTRACT_ADDRESS as string || '0x85ea3eB894105bD7e7e2A8D34cf66C8E8163CD2a';
+    const gasRegistryContractAddress = process.env.GAS_REGISTRY_CONTRACT_ADDRESS as string || '0x204F9278D6BB7714D7A40842423dFd5A27cC1b88';
     const contract = new ethers.Contract(gasRegistryContractAddress, gasRegistryAbi, signer);
 
     // Each TG costs 0.001 ETH, so calculate the ETH required for the given TG amount
