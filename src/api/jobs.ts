@@ -289,7 +289,7 @@ export async function createJob(
         throw new Error(`Insufficient TG balance. Job cost prediction is ${job_cost_prediction}. Current TG balance: ${tgBalance}. Please set autotopupTG: true in jobInput.`);
       } else {
         // autotopupTG is true, automatically top up
-        const requiredTG = Math.ceil(job_cost_prediction * 1000); // 1 TG = 0.001 ETH
+        const requiredTG = Math.ceil(job_cost_prediction); // 1 TG = 0.001 ETH
         await topupTg(requiredTG, signer);
       }
     }
