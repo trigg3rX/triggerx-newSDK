@@ -13,7 +13,7 @@ import { topupTg } from './topupTg';
 import { checkTgBalance } from './checkTgBalance';
 const JOB_ID = '300949528249665590178224313442040528409305273634097553067152835846309150732';
 const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
-const JOB_REGISTRY_ADDRESS = '0xdB66c11221234C6B19cCBd29868310c31494C21C'; // Set your fixed contract address here
+const JOB_REGISTRY_ADDRESS = '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b'; // Set your fixed contract address here
 
 export function toCreateJobDataFromTime(
   input: TimeBasedJobInput,

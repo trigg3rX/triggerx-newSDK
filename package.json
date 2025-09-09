@@ -1,6 +1,6 @@
 {
   "name": "sdk-triggerx",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "SDK for interacting with the TriggerX backend and smart contracts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
