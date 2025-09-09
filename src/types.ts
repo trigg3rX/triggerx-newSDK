@@ -247,3 +247,23 @@ export interface UserData {
   last_updated_at: Date; // Assuming time.Time is represented as Date
   email: string; // Assuming email_id is represented as string
 }
+
+// Interface for task data (logs) from the tasks API
+export interface TaskData {
+  task_id: number; // int64
+  task_number: number; // int64
+  task_opx_cost: number; // float64
+  execution_timestamp: Date; // time.Time
+  execution_tx_hash: string;
+  task_performer_id: number; // int64
+  task_attester_ids: number[]; // []int64
+  is_accepted: boolean;
+  tx_url: string;
+  task_status: string;
+}
+
+// Combined interface for job data with task data
+export interface JobDataWithTasks {
+  jobData: JobDataAPI;
+  taskData: TaskData[];
+}
