@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import gasRegistryAbi from '../contracts/abi/GasRegistry.json';
+import { getChainAddresses } from '../config';
 
 /**
  * Withdraw ETH in exchange for TG tokens.
@@ -11,9 +12,12 @@ export const withdrawTg = async (
     signer: ethers.Signer,
     amountTG: string | ethers.BigNumberish
 ) => {
-    const gasRegistryContractAddress = process.env.GAS_REGISTRY_CONTRACT_ADDRESS as string || '0x204F9278D6BB7714D7A40842423dFd5A27cC1b88';
+    const network = await signer.provider?.getNetwork();
+    const chainId = network?.chainId ? network.chainId.toString() : undefined;
+    const { gasRegistry } = getChainAddresses(chainId);
+    const gasRegistryContractAddress = gasRegistry;
     if (!gasRegistryContractAddress) {
-        throw new Error('GAS_REGISTRY_CONTRACT_ADDRESS is not set in the environment variables');
+        throw new Error('GasRegistry address not configured for this chain. Update config mapping.');
     }
     const contract = new ethers.Contract(gasRegistryContractAddress, gasRegistryAbi, signer);
 

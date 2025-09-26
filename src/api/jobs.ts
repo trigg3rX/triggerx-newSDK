@@ -11,9 +11,10 @@ import { ethers, Signer } from 'ethers';
 import jobRegistryAbi from '../contracts/abi/JobRegistry.json';
 import { topupTg } from './topupTg';
 import { checkTgBalance } from './checkTgBalance';
+import { getChainAddresses } from '../config';
 const JOB_ID = '300949528249665590178224313442040528409305273634097553067152835846309150732';
 const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
-const JOB_REGISTRY_ADDRESS = '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b'; // Set your fixed contract address here
+
 
 export function toCreateJobDataFromTime(
   input: TimeBasedJobInput,
@@ -169,6 +170,15 @@ export async function createJob(
 
   const userAddress = await signer.getAddress();
 
+  // Resolve chain-specific addresses
+  const network = await signer.provider?.getNetwork();
+  const chainIdStr = network?.chainId ? network.chainId.toString() : undefined;
+  const { jobRegistry } = getChainAddresses(chainIdStr);
+  const JOB_REGISTRY_ADDRESS = jobRegistry;
+  if (!JOB_REGISTRY_ADDRESS) {
+    return { success: false, error: 'JobRegistry address not configured for this chain. Update config mapping.' };
+  }
+
   let jobTitle: string, timeFrame: number, targetContractAddress: string, jobType: number;
   if ('jobTitle' in jobInput) jobTitle = jobInput.jobTitle;
   if ('timeFrame' in jobInput) timeFrame = jobInput.timeFrame;
@@ -203,7 +213,8 @@ export async function createJob(
       if (jobType === 1) {
         encodedData = encodeJobType1Data(jobInput.timeInterval ?? 0);
       } else if (jobType === 2) {
-        encodedData = encodeJobType2Data(jobInput.timeInterval ?? 0, jobInput.dynamicArgumentsScriptUrl || '');
+        const ipfsBytes32 = jobInput.dynamicArgumentsScriptUrl ? ethers.id(jobInput.dynamicArgumentsScriptUrl) : ethers.ZeroHash;
+        encodedData = encodeJobType2Data(jobInput.timeInterval ?? 0, ipfsBytes32);
       }
     }
     // Event-based jobs
@@ -211,7 +222,8 @@ export async function createJob(
       if (jobType === 3 || jobType === 5) {
         encodedData = encodeJobType3or5Data(jobInput.recurring ?? false);
       } else if (jobType === 4 || jobType === 6) {
-        encodedData = encodeJobType4or6Data(jobInput.recurring ?? false, jobInput.dynamicArgumentsScriptUrl || '');
+        const ipfsBytes32 = jobInput.dynamicArgumentsScriptUrl ? ethers.id(jobInput.dynamicArgumentsScriptUrl) : ethers.ZeroHash;
+        encodedData = encodeJobType4or6Data(jobInput.recurring ?? false, ipfsBytes32);
       }
     }
     // Condition-based jobs
@@ -219,7 +231,8 @@ export async function createJob(
       if (jobType === 3 || jobType === 5) {
         encodedData = encodeJobType3or5Data(jobInput.recurring ?? false);
       } else if (jobType === 4 || jobType === 6) {
-        encodedData = encodeJobType4or6Data(jobInput.recurring ?? false, jobInput.dynamicArgumentsScriptUrl || '');
+        const ipfsBytes32 = jobInput.dynamicArgumentsScriptUrl ? ethers.id(jobInput.dynamicArgumentsScriptUrl) : ethers.ZeroHash;
+        encodedData = encodeJobType4or6Data(jobInput.recurring ?? false, ipfsBytes32);
       }
     }
   }

@@ -1,6 +1,6 @@
 {
   "name": "sdk-triggerx",
-  "version": "0.1.12",
+  "version": "0.1.15",
   "description": "SDK for interacting with the TriggerX backend and smart contracts.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,7 +15,13 @@
     "type": "git",
     "url": "https://github.com/trigg3rX/triggerx-newSDK.git"
   },
-  "keywords": ["triggerx", "sdk", "web3", "blockchain", "ethers"],
+  "keywords": [
+    "triggerx",
+    "sdk",
+    "web3",
+    "blockchain",
+    "ethers"
+  ],
   "directories": {
     "test": "test"
   },
