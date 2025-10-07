@@ -11,6 +11,7 @@ export class TriggerXClient {
     this.client = axios.create({
       baseURL: 'https://data.triggerx.network',  //'http://localhost:9002', //'https://data.triggerx.network',
       headers: { 'Authorization': `Bearer ${this.apiKey}` }, // Set the API key here
+      timeout: 30000, // 30 second timeout
       ...config,
     });
   }

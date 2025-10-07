@@ -11,6 +11,13 @@ export interface CreateJobOnChainParams {
   signer: Signer;
 }
 
+export interface DeleteJobOnChainParams {
+  jobId: string;
+  contractAddress: string;
+  abi: any;
+  signer: Signer;
+}
+
 export async function createJobOnChain({
   jobTitle,
   jobType,
@@ -42,4 +49,16 @@ export async function createJobOnChain({
   }
 
   throw new Error('Job ID not found in contract events');
+}
+
+export async function deleteJobOnChain({
+  jobId,
+  contractAddress,
+  abi,
+  signer,
+}: DeleteJobOnChainParams): Promise<void> {
+  const contract = new ethers.Contract(contractAddress, abi.abi, signer);
+
+  const tx = await contract.deleteJob(jobId);
+  await tx.wait();
 } 
