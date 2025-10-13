@@ -12,6 +12,8 @@ import jobRegistryAbi from '../contracts/abi/JobRegistry.json';
 import { topupTg } from './topupTg';
 import { checkTgBalance } from './checkTgBalance';
 import { getChainAddresses } from '../config';
+import { validateJobInput } from '../utils/validation';
+import { ValidationError } from '../utils/errors';
 const JOB_ID = '300949528249665590178224313442040528409305273634097553067152835846309150732';
 const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
 
@@ -164,6 +166,18 @@ export async function createJob(
   params: CreateJobParams
 ): Promise<JobResponse> {
   let { jobInput, signer, encodedData } = params;
+
+  // 0. Validate user input thoroughly before proceeding
+  try {
+    const argValue = (jobInput as any).argType as any;
+    validateJobInput(jobInput as any, argValue);
+    console.log('Job input validated successfully');
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      return { success: false, error: `${err.field}: ${err.message}` };
+    }
+    return { success: false, error: (err as Error).message };
+  }
 
   // Use the API key from the client instance
   const apiKey = client.getApiKey();
