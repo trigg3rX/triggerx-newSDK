@@ -14,6 +14,9 @@ import { checkTgBalance } from './checkTgBalance';
 import { getChainAddresses } from '../config';
 import { validateJobInput } from '../utils/validation';
 import { ValidationError } from '../utils/errors';
+import { enableSafeModule, ensureSingleOwnerAndMatchSigner } from '../contracts/safe/SafeWallet';
+import { createSafeWalletForUser } from '../contracts/safe/SafeFactory';
+
 const JOB_ID = '300949528249665590178224313442040528409305273634097553067152835846309150732';
 const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
 
@@ -187,7 +190,7 @@ export async function createJob(
   // Resolve chain-specific addresses
   const network = await signer.provider?.getNetwork();
   const chainIdStr = network?.chainId ? network.chainId.toString() : undefined;
-  const { jobRegistry } = getChainAddresses(chainIdStr);
+  const { jobRegistry, safeModule, safeFactory } = getChainAddresses(chainIdStr);
   const JOB_REGISTRY_ADDRESS = jobRegistry;
   if (!JOB_REGISTRY_ADDRESS) {
     return { success: false, error: 'JobRegistry address not configured for this chain. Update config mapping.' };
@@ -327,6 +330,53 @@ export async function createJob(
 
   // Patch jobInput with job_cost_prediction for downstream usage
   (jobInput as any).jobCostPrediction = job_cost_prediction;
+
+  // --- Safe wallet integration (override target to module when selected) ---
+  const walletMode = (jobInput as any).walletMode as any;
+  if (walletMode === 'safe') {
+    if (!safeModule) {
+      return { success: false, error: 'Safe Module address not configured for this chain.' };
+    }
+
+    // Enforce dynamic parameters coming from IPFS only
+    const dynUrl = (jobInput as any).dynamicArgumentsScriptUrl;
+    if (!dynUrl) {
+      return { success: false, error: 'Safe jobs require dynamicArgumentsScriptUrl (IPFS) for parameters.' };
+    }
+
+    // Resolve or create Safe wallet
+    const providedSafeAddress: string | undefined = (jobInput as any).safeAddress;
+    let safeAddressToUse = providedSafeAddress;
+    if (!safeAddressToUse) {
+      if (!safeFactory) {
+        return { success: false, error: 'Safe Factory address not configured for this chain.' };
+      }
+      safeAddressToUse = await createSafeWalletForUser(safeFactory, signer, userAddress);
+    }
+
+    // Validate Safe has single owner and owner matches signer
+    await ensureSingleOwnerAndMatchSigner(safeAddressToUse, signer.provider!, userAddress);
+
+    // Ensure module is enabled on Safe
+    await enableSafeModule(safeAddressToUse, signer, safeModule);
+
+    // Override target for job to Safe Module and function to execJobFromHub
+    targetContractAddress = safeModule; // ensure target contract is SAFE_MODULE_ADDRESS only
+    (jobInput as any).targetContractAddress = safeModule;
+    (jobInput as any).targetFunction = 'execJobFromHub(address,address,uint256,bytes,uint8)';
+    (jobInput as any).abi = JSON.stringify([
+      { "type": "function", "name": "execJobFromHub", "stateMutability": "nonpayable", "inputs": [
+        { "name": "safeAddress", "type": "address" },
+        { "name": "actionTarget", "type": "address" },
+        { "name": "actionValue", "type": "uint256" },
+        { "name": "actionData", "type": "bytes" },
+        { "name": "operation", "type": "uint8" }
+      ], "outputs": [ { "type": "bool", "name": "success" } ] }
+    ]);
+
+    // Note: Parameters will be dynamically provided via IPFS script; do not set static arguments here
+    (jobInput as any).arguments = undefined;
+  }
 
   const jobId = await createJobOnChain({
     jobTitle: jobTitle!,

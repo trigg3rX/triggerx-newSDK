@@ -22,6 +22,8 @@ export enum ArgType {
   Dynamic = 'dynamic',
 }
 
+export type WalletMode = 'regular' | 'safe';
+
 // Discriminated union for job input
 export type CreateJobInput =
   | (TimeBasedJobInput & { jobType: JobType.Time; argType: ArgType.Static | ArgType.Dynamic })
@@ -46,6 +48,9 @@ export interface TimeBasedJobInput {
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
   autotopupTG?: boolean;
+  // wallet selection
+  walletMode?: WalletMode; // default: 'regular'
+  safeAddress?: string;
 }
 
 export interface EventBasedJobInput {
@@ -64,6 +69,9 @@ export interface EventBasedJobInput {
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
   autotopupTG?: boolean;
+  // wallet selection
+  walletMode?: WalletMode; // default: 'regular'
+  safeAddress?: string;
 }
 
 export interface ConditionBasedJobInput {
@@ -84,6 +92,9 @@ export interface ConditionBasedJobInput {
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
   autotopupTG?: boolean;
+  // wallet selection
+  walletMode?: WalletMode; // default: 'regular'
+  safeAddress?: string;
 }
 
 // Internal type matching backend struct

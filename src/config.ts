@@ -11,6 +11,9 @@ export interface SDKConfig {
 export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
   gasRegistry: string;
   jobRegistry: string;
+  safeFactory?: string;
+  safeModule?: string;
+  safeSingleton?: string;
 }> = {
   // TESTNET CONFIGURATIONS
   // OP Sepolia (11155420) - Optimism Sepolia Testnet
@@ -27,6 +30,9 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
   '421614': {
     gasRegistry: '0x664CB20BCEEc9416D290AC820e5446e61a5c75e4',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
+    safeFactory: '0x383D4a61D0B069D02cA2Db5A82003b9561d56e19',
+    safeModule: '0xca3a0c43Ac9E4FcB76C774F330fD31D4098EEacD',
+    // safeSingleton can be provided per deployment (Safe or SafeL2)
   },
   // Base Sepolia (84532) - Base Sepolia Testnet
   '84532': {
@@ -56,5 +62,8 @@ export function getChainAddresses(chainId: string | number | undefined) {
   return {
     gasRegistry: mapped ? mapped.gasRegistry : '',
     jobRegistry: mapped ? mapped.jobRegistry : '',
+    safeFactory: mapped ? mapped.safeFactory : '',
+    safeModule: mapped ? mapped.safeModule : '',
+    safeSingleton: mapped ? mapped.safeSingleton : '',
   };
 }
