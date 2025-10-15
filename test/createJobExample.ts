@@ -3,87 +3,78 @@ import { JobType, ArgType, CreateJobInput } from '../src/types';
 import { ethers } from 'ethers';
 
 async function main() {
-
-    const apiKey = '';
+    // Initialize the TriggerX client
+    const apiKey = 'TGRX-3c6ec268-0cba-431e-bf1f-a16374c39576';
     const client = new TriggerXClient(apiKey);
-
-    // Example: Time-based static job
-    const jobInput: CreateJobInput = {
-        jobType: JobType.Time,
-        argType: ArgType.Static,
-        jobTitle: 'SDK Test Time Job for mainnet',
-        timeFrame: 36,
-        scheduleType: 'interval',
-        timeInterval: 33,
-        cronExpression: '0 0 * * *',
-        specificSchedule: '2025-01-01 00:00:00',
-        timezone: 'Asia/Calcutta',
-        chainId: '11155420',
-        targetContractAddress: '0x49a81A591afdDEF973e6e49aaEa7d76943ef234C',
-        targetFunction: 'incrementBy',
-        abi: '[{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"previousValue","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newValue","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"incrementAmount","type":"uint256"}],"name":"CounterIncremented","type":"event"},{"inputs":[],"name":"getCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"increment","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"incrementBy","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
-        isImua: true,
-        arguments: ['3'],
-        dynamicArgumentsScriptUrl: '',
-    };
-
-    // // Example: Condition-based static job
-    // const jobInput: CreateJobInput = {
-    //     jobType: JobType.Condition,
-    //     argType: ArgType.Static,
-    //     jobTitle: 'SDK Test Condition Job',
-    //     timeFrame: 48,
-    //     conditionType: 'greaterThan',
-    //     upperLimit: 100,
-    //     lowerLimit: 10,
-    //     valueSourceType: 'http',
-    //     valueSourceUrl: 'https://api.example.com/value',
-    //     timezone: 'Asia/Calcutta',
-    //     recurring: false,
-    //     chainId: '11155420',
-    //     targetContractAddress: '0x49a81A591afdDEF973e6e49aaEa7d76943ef234C',
-    //     targetFunction: 'incrementBy',
-    //     abi: '[{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"previousValue","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newValue","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"incrementAmount","type":"uint256"}],"name":"CounterIncremented","type":"event"},{"inputs":[],"name":"getCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"increment","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"incrementBy","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
-    //     isImua: true,
-    //     arguments: ['5'],
-    //     dynamicArgumentsScriptUrl: '',
-    // };
-
-    // // Example: Event-based static job
-    // const eventJobInput: CreateJobInput = {
-    //     jobType: JobType.Event,
-    //     argType: ArgType.Static,
-    //     jobTitle: 'SDK Test Event Job',
-    //     timeFrame: 25,
-    //     triggerChainId: '11155420',
-    //     triggerContractAddress: '0x49a81A591afdDEF973e6e49aaEa7d76943ef234C',
-    //     triggerEvent: 'CounterIncremented(uint256,uint256,uint256)',
-    //     timezone: 'Asia/Calcutta',
-    //     chainId: '11155420',
-    //     targetContractAddress: '0x49a81A591afdDEF973e6e49aaEa7d76943ef234C',
-    //     targetFunction: 'incrementBy',
-    //     abi: '[{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"previousValue","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newValue","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"incrementAmount","type":"uint256"}],"name":"CounterIncremented","type":"event"},{"inputs":[],"name":"getCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"increment","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"incrementBy","outputs":[],"stateMutability":"nonpayable","type":"function"}]',
-    // };
-
-    // To test, you can call createJob with this input as well:
-    // const conditionResult = await createJob(client, {
-    //     jobInput: conditionJobInput,
-    //     signer,
-    // });
-    // console.log('Condition Job creation result:', conditionResult);
-
-    // These would typically come from env/config/user input
+    
+    // Set up your wallet and provider
     const privateKey = '';
-    const providerUrl = '';
+    const providerUrl = 'https://sepolia-rollup.arbitrum.io/rpc'; // Arbitrum Sepolia
     const provider = new ethers.JsonRpcProvider(providerUrl);
     const signer = new ethers.Wallet(privateKey, provider);
-
-
-    const result = await createJob(client, {
-        jobInput,
-        signer,
-    });
-    console.log('Job creation result:', result);
+    
+    console.log('Creating a TriggerX job...');
+    console.log('Signer address:', await signer.getAddress());
+    
+    try {
+        // Example 1: Safe-mode job creation
+        console.log('\n=== Creating Safe-mode Job ===');
+        const safeJobInput: CreateJobInput = {
+            jobType: JobType.Time,
+            argType: ArgType.Dynamic,
+            jobTitle: 'safe-time-job-example',
+            timeFrame: 70, 
+            scheduleType: 'interval',
+            timeInterval: 60, 
+            timezone: 'UTC',
+            chainId: '421614', // Arbitrum Sepolia
+            isImua: true,
+            dynamicArgumentsScriptUrl: 'https://ipfs.io/ipfs/bafybeib6oh6qmlk5dycaq6stcwi24ukh7dsliqsdqnol5wbkkn4sv5vneq',
+            autotopupTG: true,
+            walletMode: 'safe',
+            safeAddress: '0xEe611960FC1250eE885A487D981876b63373aa16', // Replace with your actual Safe address
+        };
+        
+        const safeJobResult = await createJob(client, {
+            jobInput: safeJobInput,
+            signer,
+        });
+        
+        console.log('Job result:', safeJobResult);
+        console.log('✅ Safe-mode job created successfully!');
+        
+        // // Example 2: Regular wallet job creation
+        // console.log('\n=== Creating Regular Wallet Job ===');
+        // const regularJobInput: CreateJobInput = {
+        //     jobType: JobType.Time,
+        //     argType: ArgType.Static,
+        //     jobTitle: 'regular-time-job-example',
+        //     timeFrame: 7200, // 2 hours
+        //     scheduleType: 'interval',
+        //     timeInterval: 600, // 10 minutes
+        //     timezone: 'UTC',
+        //     chainId: '421614', // Arbitrum Sepolia
+        //     isImua: false,
+        //     staticArguments: ['arg1', 'arg2', 'arg3'],
+        //     autotopupTG: false,
+        //     walletMode: 'regular',
+        // };
+        
+        // const regularJobResult = await createJob(client, {
+        //     jobInput: regularJobInput,
+        //     signer,
+        // });
+        
+        // console.log('✅ Regular wallet job created successfully!');
+        // console.log('Job result:', regularJobResult);
+        
+        console.log('\n🎉 All jobs created successfully!');
+        console.log('Note: Make sure you have sufficient TG balance for job execution.');
+        
+    } catch (error) {
+        console.error('❌ Failed to create job:', error);
+    }
 }
 
+// Run the example
 main().catch(console.error);

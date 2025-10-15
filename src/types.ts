@@ -10,6 +10,37 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+// HTTP Status Code Types
+export type HttpStatusCode = 
+  | 400 | 401 | 402 | 403 | 404 | 405 | 406 | 407 | 408 | 409 | 410 | 411 | 412 | 413 | 414 | 415 | 416 | 417 | 418 | 421 | 422 | 423 | 424 | 425 | 426 | 428 | 429 | 431 | 451
+  | 500 | 501 | 502 | 503 | 504 | 505 | 506 | 507 | 508 | 510 | 511;
+
+// API Error Code Types
+export type ApiErrorCode = 
+  // 4xx Client Errors
+  | 'BAD_REQUEST' | 'UNAUTHORIZED' | 'PAYMENT_REQUIRED' | 'FORBIDDEN' | 'NOT_FOUND' | 'METHOD_NOT_ALLOWED' | 'NOT_ACCEPTABLE' | 'PROXY_AUTHENTICATION_REQUIRED' | 'REQUEST_TIMEOUT' | 'CONFLICT' | 'GONE' | 'LENGTH_REQUIRED' | 'PRECONDITION_FAILED' | 'PAYLOAD_TOO_LARGE' | 'URI_TOO_LONG' | 'UNSUPPORTED_MEDIA_TYPE' | 'RANGE_NOT_SATISFIABLE' | 'EXPECTATION_FAILED' | 'IM_A_TEAPOT' | 'MISDIRECTED_REQUEST' | 'UNPROCESSABLE_ENTITY' | 'LOCKED' | 'FAILED_DEPENDENCY' | 'TOO_EARLY' | 'UPGRADE_REQUIRED' | 'PRECONDITION_REQUIRED' | 'TOO_MANY_REQUESTS' | 'REQUEST_HEADER_FIELDS_TOO_LARGE' | 'UNAVAILABLE_FOR_LEGAL_REASONS'
+  // 5xx Server Errors
+  | 'INTERNAL_SERVER_ERROR' | 'NOT_IMPLEMENTED' | 'BAD_GATEWAY' | 'SERVICE_UNAVAILABLE' | 'GATEWAY_TIMEOUT' | 'HTTP_VERSION_NOT_SUPPORTED' | 'VARIANT_ALSO_NEGOTIATES' | 'INSUFFICIENT_STORAGE' | 'LOOP_DETECTED' | 'NOT_EXTENDED' | 'NETWORK_AUTHENTICATION_REQUIRED'
+  // Custom API Errors
+  | 'VALIDATION_ERROR' | 'NETWORK_ERROR' | 'AUTHENTICATION_ERROR' | 'CONTRACT_ERROR' | 'BALANCE_ERROR' | 'CONFIGURATION_ERROR' | 'RATE_LIMIT_EXCEEDED' | 'INSUFFICIENT_FUNDS' | 'INVALID_SIGNATURE' | 'TRANSACTION_FAILED' | 'CONTRACT_REVERT' | 'GAS_ESTIMATION_FAILED' | 'NONCE_TOO_LOW' | 'NONCE_TOO_HIGH' | 'REPLACEMENT_UNDERPRICED' | 'UNKNOWN_ERROR';
+
+// Error response types with comprehensive error codes
+export interface ErrorResponse {
+  success: false;
+  error: string;
+  errorCode: ApiErrorCode;
+  httpStatusCode?: HttpStatusCode;
+  errorType: 'VALIDATION_ERROR' | 'NETWORK_ERROR' | 'AUTHENTICATION_ERROR' | 'CONTRACT_ERROR' | 'API_ERROR' | 'BALANCE_ERROR' | 'CONFIGURATION_ERROR' | 'UNKNOWN_ERROR';
+  details?: any;
+}
+
+export interface SuccessResponse<T> {
+  success: true;
+  data: T;
+}
+
+export type ApiResult<T> = SuccessResponse<T> | ErrorResponse;
+
 // Enums for job type and argument type
 export enum JobType {
   Time = 'time',
@@ -41,16 +72,20 @@ export interface TimeBasedJobInput {
   timezone: string;
   // recurring removed for time-based jobs; always false
   chainId: string; // single chain input; used for created/target
-  targetContractAddress: string;
-  targetFunction: string;
-  abi: string;
+  targetContractAddress?: string; // optional in safe mode
+  targetFunction?: string;        // optional in safe mode
+  abi?: string;                   // optional in safe mode
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
   autotopupTG?: boolean;
   // wallet selection
   walletMode?: WalletMode; // default: 'regular'
-  safeAddress?: string;
+  /**
+   * The Safe address to use when walletMode is 'safe'.
+   * Required if walletMode is 'safe'.
+   */
+  safeAddress: string;
 }
 
 export interface EventBasedJobInput {
@@ -62,16 +97,20 @@ export interface EventBasedJobInput {
   timezone: string;
   recurring?: boolean;
   chainId: string; // used for created/trigger/target chains
-  targetContractAddress: string;
-  targetFunction: string;
-  abi: string;
+  targetContractAddress?: string; // optional in safe mode
+  targetFunction?: string;        // optional in safe mode
+  abi?: string;                   // optional in safe mode
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
   autotopupTG?: boolean;
   // wallet selection
   walletMode?: WalletMode; // default: 'regular'
-  safeAddress?: string;
+  /**
+   * The Safe address to use when walletMode is 'safe'.
+   * Required if walletMode is 'safe'.
+   */
+  safeAddress: string;
 }
 
 export interface ConditionBasedJobInput {
@@ -85,16 +124,20 @@ export interface ConditionBasedJobInput {
   timezone: string;
   recurring?: boolean;
   chainId: string; // used for created/target chains
-  targetContractAddress: string;
-  targetFunction: string;
-  abi: string;
+  targetContractAddress?: string; // optional in safe mode
+  targetFunction?: string;        // optional in safe mode
+  abi?: string;                   // optional in safe mode
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
   autotopupTG?: boolean;
   // wallet selection
   walletMode?: WalletMode; // default: 'regular'
-  safeAddress?: string;
+  /**
+   * The Safe address to use when walletMode is 'safe'.
+   * Required if walletMode is 'safe'.
+   */
+  safeAddress: string;
 }
 
 // Internal type matching backend struct
@@ -137,6 +180,10 @@ export interface JobResponse {
   success: boolean;
   data?: any;
   error?: string;
+  errorCode?: ApiErrorCode;
+  httpStatusCode?: HttpStatusCode;
+  errorType?: 'VALIDATION_ERROR' | 'NETWORK_ERROR' | 'AUTHENTICATION_ERROR' | 'CONTRACT_ERROR' | 'API_ERROR' | 'BALANCE_ERROR' | 'CONFIGURATION_ERROR' | 'UNKNOWN_ERROR';
+  details?: any;
 }
 
 // Types matching backend JobResponseAPI
@@ -234,6 +281,10 @@ export interface ConditionJobData {
 export interface JobResponseUser {
   success: boolean;
   error?: string;
+  errorCode?: ApiErrorCode;
+  httpStatusCode?: HttpStatusCode;
+  errorType?: 'VALIDATION_ERROR' | 'NETWORK_ERROR' | 'AUTHENTICATION_ERROR' | 'CONTRACT_ERROR' | 'API_ERROR' | 'BALANCE_ERROR' | 'CONFIGURATION_ERROR' | 'UNKNOWN_ERROR';
+  details?: any;
   jobs?: JobResponseAPI
 }
 

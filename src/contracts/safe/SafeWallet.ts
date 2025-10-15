@@ -4,6 +4,8 @@ import { ethers, Signer } from 'ethers';
 export const SAFE_ABI = [
   // module checks
   "function isModuleEnabled(address module) view returns (bool)",
+  // module management
+  "function enableModule(address module)",
   // EIP-712 domain separator for Safe
   "function domainSeparator() view returns (bytes32)",
   // Safe nonce
@@ -13,6 +15,8 @@ export const SAFE_ABI = [
   // Owners and threshold, to validate single signer safes
   "function getOwners() view returns (address[])",
   "function getThreshold() view returns (uint256)",
+  // Add getTransactionHash for onchain hash calculation
+  "function getTransactionHash(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce) view returns (bytes32)"
 ];
 
 // Safe EIP-712 typehash for transactions
@@ -54,50 +58,66 @@ export async function enableSafeModule(safeAddress: string, signer: Signer, modu
 
   // If already enabled, exit early
   const already = await safeProxy.isModuleEnabled(moduleAddress);
-  if (already) return;
+  if (already) {
+    console.log('Module is already enabled');
+    return;
+  }
 
+  // First, let's try the direct approach for single-owner Safes
+  try {
+    console.log('Attempting direct enableModule call...');
+    const safeWithSigner = new ethers.Contract(safeAddress, SAFE_ABI, signer);
+    const tx = await safeWithSigner.enableModule(moduleAddress);
+    await tx.wait();
+    console.log('Module enabled via direct call');
+    return;
+  } catch (error) {
+    console.log('Direct call failed, trying execTransaction approach...');
+  }
+
+  // If direct call fails, use execTransaction with proper signature
   const safeNonce: bigint = await safeProxy.nonce();
   const iface = new ethers.Interface(SAFE_ABI);
   const data = iface.encodeFunctionData('enableModule', [moduleAddress]);
 
   const to = safeAddress;
-  const value = 0n;
+  const value = 0;
   const operation = 0; // CALL
-  const safeTxGas = 0n;
-  const baseGas = 0n;
-  const gasPrice = 0n;
+  const safeTxGas = 0;
+  const baseGas = 0;
+  const gasPrice = 0;
   const gasToken = ethers.ZeroAddress;
   const refundReceiver = ethers.ZeroAddress;
 
-  // Calculate Safe transaction hash per EIP-712
-  const safeTxHash = ethers.keccak256(
-    ethers.AbiCoder.defaultAbiCoder().encode(
-      [
-        'bytes32', 'address', 'uint256', 'bytes32', 'uint8',
-        'uint256', 'uint256', 'uint256', 'address', 'address', 'uint256'
-      ],
-      [
-        SAFE_TX_TYPEHASH, to, value, ethers.keccak256(data), operation,
-        safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, safeNonce
-      ]
-    )
+  // Use contract to compute tx hash to avoid mismatch
+  const safeTxHash = await safeProxy.getTransactionHash(
+    to,
+    value,
+    data,
+    operation,
+    safeTxGas,
+    baseGas,
+    gasPrice,
+    gasToken,
+    refundReceiver,
+    safeNonce
   );
 
-  const domainSeparator: string = await safeProxy.domainSeparator();
-  const txHash = ethers.keccak256(
-    ethers.solidityPacked(
-      ['bytes1', 'bytes1', 'bytes32', 'bytes32'],
-      ['0x19', '0x01', domainSeparator, safeTxHash]
-    )
-  );
+  // Sign the transaction hash using the connected wallet (personal_sign)
+  // For Gnosis Safe, personal_sign signatures must have v adjusted by +4 to mark EthSign
+  const rawSignature = await signer.signMessage(ethers.getBytes(safeTxHash));
+  const sigObj = ethers.Signature.from(rawSignature);
+  const adjustedV = sigObj.v + 4;
+  const signature = ethers.concat([
+    sigObj.r,
+    sigObj.s,
+    ethers.toBeHex(adjustedV, 1),
+  ]);
 
-  const rawSignature = await signer.signMessage(ethers.getBytes(txHash));
-  const sig = ethers.Signature.from(rawSignature);
-  const adjustedV = sig.v + 4; // EthSign type
-  const signature = ethers.concat([sig.r, sig.s, ethers.toBeHex(adjustedV, 1)]);
+  // Execute the transaction through Safe's execTransaction
+  const safeProxyWithSigner = new ethers.Contract(safeAddress, SAFE_ABI, signer);
 
-  const safeWithSigner = new ethers.Contract(safeAddress, SAFE_ABI, signer);
-  const tx = await safeWithSigner.execTransaction(
+  const tx = await safeProxyWithSigner.execTransaction(
     to,
     value,
     data,
@@ -109,12 +129,15 @@ export async function enableSafeModule(safeAddress: string, signer: Signer, modu
     refundReceiver,
     signature
   );
+
   await tx.wait();
 
-  const check = await safeProxy.isModuleEnabled(moduleAddress);
-  if (!check) {
-    throw new Error('Module verification failed');
+  // Verify module is enabled
+  const isNowEnabled = await safeProxy.isModuleEnabled(moduleAddress);
+  if (!isNowEnabled) {
+    throw new Error("Module verification failed");
   }
-}
 
+  console.log('Module enabled successfully via execTransaction');
+}
 

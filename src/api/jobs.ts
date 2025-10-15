@@ -13,7 +13,18 @@ import { topupTg } from './topupTg';
 import { checkTgBalance } from './checkTgBalance';
 import { getChainAddresses } from '../config';
 import { validateJobInput } from '../utils/validation';
-import { ValidationError } from '../utils/errors';
+import {
+  ValidationError,
+  NetworkError,
+  AuthenticationError,
+  ContractError,
+  ApiError,
+  BalanceError,
+  ConfigurationError,
+  createErrorResponse,
+  extractHttpStatusCode,
+  determineErrorCode
+} from '../utils/errors';
 import { enableSafeModule, ensureSingleOwnerAndMatchSigner } from '../contracts/safe/SafeWallet';
 import { createSafeWalletForUser } from '../contracts/safe/SafeFactory';
 
@@ -45,9 +56,9 @@ export function toCreateJobDataFromTime(
     cron_expression: input.scheduleType === 'cron' ? input.cronExpression : undefined,
     specific_schedule: input.scheduleType === 'specific' ? input.specificSchedule : undefined,
     target_chain_id: input.chainId,
-    target_contract_address: input.targetContractAddress,
-    target_function: input.targetFunction,
-    abi: input.abi,
+    target_contract_address: (input as any).targetContractAddress || '',
+    target_function: (input as any).targetFunction || '',
+    abi: (input as any).abi || '',
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
@@ -78,9 +89,9 @@ export function toCreateJobDataFromEvent(
     trigger_contract_address: input.triggerContractAddress,
     trigger_event: input.triggerEvent,
     target_chain_id: input.chainId,
-    target_contract_address: input.targetContractAddress,
-    target_function: input.targetFunction,
-    abi: input.abi,
+    target_contract_address: (input as any).targetContractAddress || '',
+    target_function: (input as any).targetFunction || '',
+    abi: (input as any).abi || '',
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
@@ -113,9 +124,9 @@ export function toCreateJobDataFromCondition(
     value_source_type: input.valueSourceType,
     value_source_url: input.valueSourceUrl,
     target_chain_id: input.chainId,
-    target_contract_address: input.targetContractAddress,
-    target_function: input.targetFunction,
-    abi: input.abi,
+    target_contract_address: (input as any).targetContractAddress || '',
+    target_function: (input as any).targetFunction || '',
+    abi: (input as any).abi || '',
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
@@ -170,47 +181,149 @@ export async function createJob(
 ): Promise<JobResponse> {
   let { jobInput, signer, encodedData } = params;
 
-  // 0. Validate user input thoroughly before proceeding
+  // Use the API key from the client instance
+  const apiKey = client.getApiKey();
+  if (!apiKey) {
+    return createErrorResponse(
+      new AuthenticationError('API key is required but not provided'),
+      'Authentication failed'
+    );
+  }
+
+  let userAddress: string;
+  try {
+    userAddress = await signer.getAddress();
+  } catch (err) {
+    return createErrorResponse(
+      new AuthenticationError('Failed to get signer address', { originalError: err }),
+      'Authentication failed'
+    );
+  }
+
+  // Resolve chain-specific addresses
+  let network: any;
+  try {
+    network = await signer.provider?.getNetwork();
+  } catch (err) {
+    return createErrorResponse(
+      new NetworkError('Failed to get network information', { originalError: err }),
+      'Network error'
+    );
+  }
+
+  const chainIdStr = network?.chainId ? network.chainId.toString() : undefined;
+  const { jobRegistry, safeModule, safeFactory } = getChainAddresses(chainIdStr);
+  const JOB_REGISTRY_ADDRESS = jobRegistry;
+  if (!JOB_REGISTRY_ADDRESS) {
+    return createErrorResponse(
+      new ConfigurationError(`JobRegistry address not configured for chain ID: ${chainIdStr}`),
+      'Configuration error'
+    );
+  }
+
+  // If Safe mode, override target fields BEFORE validation so user doesn't need to provide them
+  const walletModePre = (jobInput as any).walletMode as any;
+  if (walletModePre === 'safe') {
+    if (!safeModule) {
+      return createErrorResponse(
+        new ConfigurationError('Safe Module address not configured for this chain.'),
+        'Configuration error'
+      );
+    }
+    // If safeAddress is missing, require it (must be created by the user before this call)
+    if (!(jobInput as any).safeAddress || typeof (jobInput as any).safeAddress !== 'string' || !(jobInput as any).safeAddress.trim()) {
+      return createErrorResponse(
+        new ValidationError('safeAddress', 'safeAddress is required when walletMode is "safe". Call createSafeWallet first.'),
+        'Validation error'
+      );
+    }
+
+    const dynUrl = (jobInput as any).dynamicArgumentsScriptUrl;
+    if (!dynUrl) {
+      return createErrorResponse(
+        new ValidationError('dynamicArgumentsScriptUrl', 'Safe jobs require dynamicArgumentsScriptUrl (IPFS) for parameters.'),
+        'Validation error'
+      );
+    }
+    // Validate Safe has single owner and owner matches signer
+    try {
+      await ensureSingleOwnerAndMatchSigner(
+        (jobInput as any).safeAddress,
+        signer.provider!,
+        await signer.getAddress()
+      );
+
+      // Ensure module is enabled on Safe
+      await enableSafeModule(
+        (jobInput as any).safeAddress,
+        signer,
+        safeModule
+      );
+    } catch (err) {
+      return createErrorResponse(
+        new ContractError('Failed to configure Safe wallet', { originalError: err, safeAddress: (jobInput as any).safeAddress }),
+        'Contract error'
+      );
+    }
+
+    // Auto-set module target; user does not need to pass targetContractAddress in safe mode
+    (jobInput as any).targetContractAddress = safeModule;
+    (jobInput as any).targetFunction = 'execJobFromHub(address,address,uint256,bytes,uint8)';
+    (jobInput as any).abi = JSON.stringify([
+      {
+        "type": "function", "name": "execJobFromHub", "stateMutability": "nonpayable", "inputs": [
+          { "name": "safeAddress", "type": "address" },
+          { "name": "actionTarget", "type": "address" },
+          { "name": "actionValue", "type": "uint256" },
+          { "name": "actionData", "type": "bytes" },
+          { "name": "operation", "type": "uint8" }
+        ], "outputs": [{ "type": "bool", "name": "success" }]
+      }
+    ]);
+    // Ensure we don't carry static args in safe mode
+    (jobInput as any).arguments = undefined;
+  }
+
+  // 0. Validate user input thoroughly before proceeding (after safe overrides)
   try {
     const argValue = (jobInput as any).argType as any;
     validateJobInput(jobInput as any, argValue);
     console.log('Job input validated successfully');
   } catch (err) {
     if (err instanceof ValidationError) {
-      return { success: false, error: `${err.field}: ${err.message}` };
+      return createErrorResponse(err);
     }
-    return { success: false, error: (err as Error).message };
+    return createErrorResponse(err, 'Job input validation failed');
   }
 
-  // Use the API key from the client instance
-  const apiKey = client.getApiKey();
+  let jobTitle: string = '';
+  let timeFrame: number = 0;
+  let targetContractAddress: string = '';
+  let jobType: number = 0;
 
-  const userAddress = await signer.getAddress();
-
-  // Resolve chain-specific addresses
-  const network = await signer.provider?.getNetwork();
-  const chainIdStr = network?.chainId ? network.chainId.toString() : undefined;
-  const { jobRegistry, safeModule, safeFactory } = getChainAddresses(chainIdStr);
-  const JOB_REGISTRY_ADDRESS = jobRegistry;
-  if (!JOB_REGISTRY_ADDRESS) {
-    return { success: false, error: 'JobRegistry address not configured for this chain. Update config mapping.' };
-  }
-
-  let jobTitle: string, timeFrame: number, targetContractAddress: string, jobType: number;
   if ('jobTitle' in jobInput) jobTitle = jobInput.jobTitle;
   if ('timeFrame' in jobInput) timeFrame = jobInput.timeFrame;
-  if ('targetContractAddress' in jobInput) targetContractAddress = jobInput.targetContractAddress;
+  if ('targetContractAddress' in jobInput) targetContractAddress = (jobInput as any).targetContractAddress || '';
 
   // Validate schedule-specific fields for time-based jobs
   if ('scheduleType' in jobInput) {
     if (jobInput.scheduleType === 'interval' && (jobInput.timeInterval === undefined || jobInput.timeInterval === null)) {
-      throw new Error('timeInterval is required when scheduleType is interval');
+      return createErrorResponse(
+        new ValidationError('timeInterval', 'timeInterval is required when scheduleType is interval'),
+        'Validation error'
+      );
     }
     if (jobInput.scheduleType === 'cron' && !jobInput.cronExpression) {
-      throw new Error('cronExpression is required when scheduleType is cron');
+      return createErrorResponse(
+        new ValidationError('cronExpression', 'cronExpression is required when scheduleType is cron'),
+        'Validation error'
+      );
     }
     if (jobInput.scheduleType === 'specific' && !jobInput.specificSchedule) {
-      throw new Error('specificSchedule is required when scheduleType is specific');
+      return createErrorResponse(
+        new ValidationError('specificSchedule', 'specificSchedule is required when scheduleType is specific'),
+        'Validation error'
+      );
     }
   }
 
@@ -280,10 +393,13 @@ export async function createJob(
     // Dynamic: call backend API to get fee
     const ipfs_url = jobInput.dynamicArgumentsScriptUrl;
     if (!ipfs_url) {
-      throw new Error('dynamicArgumentsScriptUrl is required for dynamic argType');
+      return createErrorResponse(
+        new ValidationError('dynamicArgumentsScriptUrl', 'dynamicArgumentsScriptUrl is required for dynamic argType'),
+        'Validation error'
+      );
     }
 
-    
+
     // Call backend API to get fee
     let fee: number = 0;
     try {
@@ -297,32 +413,77 @@ export async function createJob(
       } else if (feeRes && feeRes.data && typeof feeRes.data.total_fee === 'number') {
         fee = feeRes.data.total_fee;
       } else {
-        throw new Error('Invalid response from /api/fees: missing total_fee');
+        return createErrorResponse(
+          new ApiError('Invalid response from /api/fees: missing total_fee', { response: feeRes }),
+          'API error'
+        );
       }
     } catch (err) {
-      throw new Error('Failed to fetch job cost prediction: ' + (err as Error).message);
+      const httpStatusCode = extractHttpStatusCode(err);
+      const errorCode = determineErrorCode(err, httpStatusCode);
+      return createErrorResponse(
+        new ApiError('Failed to fetch job cost prediction', { originalError: err, ipfs_url }, httpStatusCode),
+        'API error'
+      );
     }
     job_cost_prediction = fee * noOfExecutions;
   }
-    // Ask user if they want to proceed
-    // Since this is a library, we can't prompt in Node.js directly.
-    // We'll throw an error with the fee and let the caller handle the prompt/confirmation.
-    // If you want to automate, you can add a `proceed` flag to params in the future.
+  // Ask user if they want to proceed
+  // Since this is a library, we can't prompt in Node.js directly.
+  // We'll throw an error with the fee and let the caller handle the prompt/confirmation.
+  // If you want to automate, you can add a `proceed` flag to params in the future.
 
-    // Check if the user has enough TG to cover the job cost prediction
-    const { tgBalanceWei, tgBalance } = await checkTgBalance(signer);
-    if (Number(tgBalance) < job_cost_prediction) {
-      // Check if user has enabled auto topup
-      // For each job type, autotopupTG should be present in jobInput
-      const autoTopupTG = (jobInput as any).autotopupTG === true;
-      if (!autoTopupTG) {
-        throw new Error(`Insufficient TG balance. Job cost prediction is ${job_cost_prediction}. Current TG balance: ${tgBalance}. Please set autotopupTG: true in jobInput.`);
-      } else {
-        // autotopupTG is true, automatically top up
-        const requiredTG = Math.ceil(job_cost_prediction); // 1 TG = 0.001 ETH
-        await topupTg(requiredTG, signer);
+  // Check if the user has enough TG to cover the job cost prediction
+  let tgBalanceWei: bigint, tgBalance: string;
+  try {
+    const balanceResult = await checkTgBalance(signer);
+    if (!balanceResult.success || !balanceResult.data) {
+      return createErrorResponse(
+        new BalanceError('Failed to check TG balance', balanceResult.details),
+        'Balance check error'
+      );
+    }
+    tgBalanceWei = balanceResult.data.tgBalanceWei;
+    tgBalance = balanceResult.data.tgBalance;
+  } catch (err) {
+    return createErrorResponse(
+      new BalanceError('Failed to check TG balance', { originalError: err }),
+      'Balance check error'
+    );
+  }
+
+  if (Number(tgBalance) < job_cost_prediction) {
+    // Check if user has enabled auto topup
+    // For each job type, autotopupTG should be present in jobInput
+    const autoTopupTG = (jobInput as any).autotopupTG === true;
+    if (!autoTopupTG) {
+      return createErrorResponse(
+        new BalanceError(`Insufficient TG balance. Job cost prediction is ${job_cost_prediction}. Current TG balance: ${tgBalance}. Please set autotopupTG: true in jobInput.`, {
+          required: job_cost_prediction,
+          current: tgBalance,
+          autoTopupEnabled: false
+        }),
+        'Insufficient balance'
+      );
+    } else {
+      // autotopupTG is true, automatically top up
+      const requiredTG = Math.ceil(job_cost_prediction); // 1 TG = 0.001 ETH
+      try {
+        const topupResult = await topupTg(requiredTG, signer);
+        if (!topupResult.success) {
+          return createErrorResponse(
+            new BalanceError('Failed to top up TG balance', topupResult.details),
+            'Top-up error'
+          );
+        }
+      } catch (err) {
+        return createErrorResponse(
+          new BalanceError('Failed to top up TG balance', { originalError: err, requiredTG }),
+          'Top-up error'
+        );
       }
     }
+  }
 
   // Compute balances to store with the job
   const tokenBalanceWei = tgBalanceWei;
@@ -331,63 +492,24 @@ export async function createJob(
   // Patch jobInput with job_cost_prediction for downstream usage
   (jobInput as any).jobCostPrediction = job_cost_prediction;
 
-  // --- Safe wallet integration (override target to module when selected) ---
-  const walletMode = (jobInput as any).walletMode as any;
-  if (walletMode === 'safe') {
-    if (!safeModule) {
-      return { success: false, error: 'Safe Module address not configured for this chain.' };
-    }
-
-    // Enforce dynamic parameters coming from IPFS only
-    const dynUrl = (jobInput as any).dynamicArgumentsScriptUrl;
-    if (!dynUrl) {
-      return { success: false, error: 'Safe jobs require dynamicArgumentsScriptUrl (IPFS) for parameters.' };
-    }
-
-    // Resolve or create Safe wallet
-    const providedSafeAddress: string | undefined = (jobInput as any).safeAddress;
-    let safeAddressToUse = providedSafeAddress;
-    if (!safeAddressToUse) {
-      if (!safeFactory) {
-        return { success: false, error: 'Safe Factory address not configured for this chain.' };
-      }
-      safeAddressToUse = await createSafeWalletForUser(safeFactory, signer, userAddress);
-    }
-
-    // Validate Safe has single owner and owner matches signer
-    await ensureSingleOwnerAndMatchSigner(safeAddressToUse, signer.provider!, userAddress);
-
-    // Ensure module is enabled on Safe
-    await enableSafeModule(safeAddressToUse, signer, safeModule);
-
-    // Override target for job to Safe Module and function to execJobFromHub
-    targetContractAddress = safeModule; // ensure target contract is SAFE_MODULE_ADDRESS only
-    (jobInput as any).targetContractAddress = safeModule;
-    (jobInput as any).targetFunction = 'execJobFromHub(address,address,uint256,bytes,uint8)';
-    (jobInput as any).abi = JSON.stringify([
-      { "type": "function", "name": "execJobFromHub", "stateMutability": "nonpayable", "inputs": [
-        { "name": "safeAddress", "type": "address" },
-        { "name": "actionTarget", "type": "address" },
-        { "name": "actionValue", "type": "uint256" },
-        { "name": "actionData", "type": "bytes" },
-        { "name": "operation", "type": "uint8" }
-      ], "outputs": [ { "type": "bool", "name": "success" } ] }
-    ]);
-
-    // Note: Parameters will be dynamically provided via IPFS script; do not set static arguments here
-    (jobInput as any).arguments = undefined;
+  let jobId: string;
+  try {
+    jobId = await createJobOnChain({
+      jobTitle: jobTitle!,
+      jobType,
+      timeFrame: timeFrame!,
+      targetContractAddress: targetContractAddress!,
+      encodedData: encodedData || '',
+      contractAddress: JOB_REGISTRY_ADDRESS,
+      abi: jobRegistryAbi.abi,
+      signer,
+    });
+  } catch (err) {
+    return createErrorResponse(
+      new ContractError('Failed to create job on chain', { originalError: err, jobTitle, jobType, timeFrame }),
+      'Contract error'
+    );
   }
-
-  const jobId = await createJobOnChain({
-    jobTitle: jobTitle!,
-    jobType,
-    timeFrame: timeFrame!,
-    targetContractAddress: targetContractAddress!,
-    encodedData: encodedData || '',
-    contractAddress: JOB_REGISTRY_ADDRESS,
-    abi: jobRegistryAbi.abi,
-    signer,
-  });
 
   // 2. Convert input to CreateJobData
   let jobData: CreateJobData;
@@ -420,6 +542,11 @@ export async function createJob(
     );
     return { success: true, data: res };
   } catch (error) {
-    return { success: false, error: (error as Error).message };
+    const httpStatusCode = extractHttpStatusCode(error);
+    const errorCode = determineErrorCode(error, httpStatusCode);
+    return createErrorResponse(
+      new ApiError('Failed to create job via API', { originalError: error, jobId }, httpStatusCode),
+      'API error'
+    );
   }
 } 

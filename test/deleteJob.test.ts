@@ -6,7 +6,7 @@ import { ethers } from 'ethers';
 
 async function main() {
   // The user should provide their actual API key here
-  const apiKey = 'TGRX-ece02db8-f676-4a9f-a4f8-a95f59e755d8';
+  const apiKey = '';
   
   // Create the client with the API key
   const client = new TriggerXClient(apiKey);

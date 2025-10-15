@@ -50,6 +50,17 @@ const client = new TriggerXClient('YOUR_API_KEY');
 - `ArgType.Static`: Hardcoded values
 - `ArgType.Dynamic`: Runtime values fetched from a script
 
+#### Wallet Modes
+
+- `walletMode: 'regular'` (default): Executes jobs from the externally-owned account (EOA) signer.
+- `walletMode: 'safe'`: Executes jobs via a Safe wallet using the TriggerX Safe Module.
+  - Requirements:
+    - Safe threshold must be 1 (single-signer) in this implementation.
+    - The signer must be an owner of the Safe.
+    - Parameters must be dynamic (provided by `dynamicArgumentsScriptUrl`).
+    - The SDK will auto-create a Safe if `safeAddress` is not provided and the chain is configured with a Safe Factory.
+    - The SDK will auto-enable the TriggerX Safe Module on the Safe if not already enabled.
+
 #### Supported Condition Types (for `conditionType`)
 
 - `greater_than`
@@ -94,6 +105,47 @@ const signer = /* ethers.Signer instance */;
 const result = await createJob(client, { jobInput, signer });
 console.log(result);
 ```
+
+---
+
+#### 🧷 Example: Time-based Dynamic Job via Safe Wallet (Arbitrum Sepolia)
+
+```ts
+import { createJob, JobType, ArgType } from 'sdk-triggerx';
+
+const jobInput = {
+  jobType: JobType.Time,
+  argType: ArgType.Dynamic,
+
+  jobTitle: 'My Safe Time Job',
+  timeFrame: 3600,
+  scheduleType: 'interval',
+  timeInterval: 300,
+  timezone: 'UTC',
+
+  // Arbitrum Sepolia
+  chainId: '421614',
+
+  // Safe mode (no target required — SDK auto-sets module target/function/ABI)
+  walletMode: 'safe',
+  // Optional: provide an existing Safe; otherwise the SDK will create one for you
+  // safeAddress: '0xYourSafeAddress',
+
+  // Dynamic params must come from an IPFS/URL script
+  dynamicArgumentsScriptUrl: 'https://your-ipfs-gateway/ipfs/your-hash',
+
+  // Optional helper to auto-top up TG if low
+  autotopupTG: true,
+};
+
+const result = await createJob(client, { jobInput, signer });
+console.log(result);
+```
+
+Notes for Safe wallet mode:
+- In Safe mode, you do NOT need to set `targetContractAddress`/`targetFunction`/`abi` — the SDK sets these for the Safe Module and uses `execJobFromHub(address,address,uint256,bytes,uint8)` under the hood.
+- Your action details (action target/value/data/op) must be produced by your IPFS script at execution time.
+- No static arguments are allowed in Safe mode.
 
 ---
 
@@ -162,6 +214,49 @@ const jobInput = {
 const result = await createJob(client, { jobInput, signer });
 console.log(result);
 ```
+
+---
+
+### 🛡️ Safe Wallet (Gnosis Safe) Flow
+
+To create jobs that use Safe wallets (`walletMode: 'safe'`), you must first create a Safe and obtain its address. The Safe MUST exist before the job can be created.
+
+#### 1️⃣ Create a Safe wallet for your user
+
+```ts
+import { createSafeWallet } from 'sdk-triggerx/api/safeWallet'; // <--- new dedicated helper!
+const safeAddress = await createSafeWallet(signer /* ethers.Signer */);
+console.log('Your Safe address:', safeAddress);
+```
+
+- Use this new address in safe job creation. All safe wallet creation belongs in this flow.
+- You can use the returned address in any number of jobs for this user.
+- This MUST be done before you attempt to create any job with `walletMode: 'safe'`.
+- All safe wallet creation helpers are now in the dedicated `api/safeWallet` module so your file structure stays clean.
+
+#### 2️⃣ Create a job using the Safe (walletMode: 'safe')
+
+```ts
+const jobInput = {
+  jobType: JobType.Time,
+  argType: ArgType.Dynamic, // required in safe mode
+  jobTitle: 'Safe Job',
+  timeFrame: 3600,
+  scheduleType: 'interval',
+  timeInterval: 300,
+  timezone: 'UTC',
+  chainId: '421614',
+  walletMode: 'safe',
+  safeAddress, // <---- required and must come from step 1
+  dynamicArgumentsScriptUrl: 'https://your-ipfs-gateway/ipfs/your-hash',
+  autotopupTG: true,
+};
+// ...
+await createJob(client, { jobInput, signer }); // as normal
+```
+
+- The `safeAddress` property is now required for jobs using `walletMode: 'safe'`.
+- The SDK will no longer auto-create a Safe wallet for you; you must explicitly create and pass it in your job input.
 
 ---
 

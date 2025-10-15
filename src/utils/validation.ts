@@ -35,17 +35,17 @@ function parseAbi(abiString: string): any[] | null {
   }
 }
 
-function validateContractBasics(address: string, abi: string, targetFunction: string, fieldPrefix = 'contract'): void {
+function validateContractBasics(address: string | undefined, abi: string | undefined, targetFunction: string | undefined, fieldPrefix = 'contract'): void {
   if (!isNonEmptyString(address)) {
     throw new ValidationError(`${fieldPrefix}Address`, 'Contract address is required.');
   }
   if (!ethers.isAddress(address)) {
     throw new ValidationError(`${fieldPrefix}Address`, 'Invalid contract address.');
   }
-  if (!isNonEmptyString(abi)) {
+  if (!isNonEmptyString(abi as string)) {
     throw new ValidationError(`${fieldPrefix}ABI`, 'Contract ABI must be provided.');
   }
-  if (!isNonEmptyString(targetFunction)) {
+  if (!isNonEmptyString(targetFunction as string)) {
     throw new ValidationError(`${fieldPrefix}Target`, 'Target function must be selected.');
   }
 }
@@ -103,7 +103,9 @@ export function validateTimeBasedJobInput(input: TimeBasedJobInput, argType: 'st
     throw new ValidationError('scheduleType', 'scheduleType must be one of interval | cron | specific.');
   }
 
-  validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+  if (input.walletMode !== 'safe') {
+    validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+  }
 
   // Arg type checks
   const isDynamic = argType === 'dynamic' || argType === 2;
@@ -112,7 +114,9 @@ export function validateTimeBasedJobInput(input: TimeBasedJobInput, argType: 'st
       throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
     }
   } else {
-    validateStaticArguments(input.abi, input.targetFunction, input.arguments, 'contract');
+    if (input.walletMode !== 'safe') {
+      validateStaticArguments(input.abi as string, input.targetFunction as string, input.arguments, 'contract');
+    }
   }
 }
 
@@ -132,8 +136,10 @@ export function validateEventBasedJobInput(input: EventBasedJobInput, argType: '
   if (!isNonEmptyString(input.triggerChainId)) {
     throw new ValidationError('triggerChainId', 'Trigger chain ID is required.');
   }
-  validateContractBasics(input.triggerContractAddress, input.abi, input.triggerEvent, 'eventContract');
-  validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+  validateContractBasics(input.triggerContractAddress, input.abi as string, input.triggerEvent, 'eventContract');
+  if (input.walletMode !== 'safe') {
+    validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+  }
 
   const isDynamic = argType === 'dynamic' || argType === 2;
   if (isDynamic) {
@@ -141,7 +147,9 @@ export function validateEventBasedJobInput(input: EventBasedJobInput, argType: '
       throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
     }
   } else {
-    validateStaticArguments(input.abi, input.targetFunction, input.arguments, 'contract');
+    if (input.walletMode !== 'safe') {
+      validateStaticArguments(input.abi as string, input.targetFunction as string, input.arguments, 'contract');
+    }
   }
 }
 
@@ -179,7 +187,9 @@ export function validateConditionBasedJobInput(input: ConditionBasedJobInput, ar
     }
   }
 
-  validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+  if (input.walletMode !== 'safe') {
+    validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+  }
 
   const isDynamic = argType === 'dynamic' || argType === 2;
   if (isDynamic) {
@@ -187,7 +197,9 @@ export function validateConditionBasedJobInput(input: ConditionBasedJobInput, ar
       throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
     }
   } else {
-    validateStaticArguments(input.abi, input.targetFunction, input.arguments, 'contract');
+    if (input.walletMode !== 'safe') {
+      validateStaticArguments(input.abi as string, input.targetFunction as string, input.arguments, 'contract');
+    }
   }
 }
 
