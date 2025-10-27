@@ -56,23 +56,35 @@ export async function enableSafeModule(safeAddress: string, signer: Signer, modu
 
   const safeProxy = new ethers.Contract(safeAddress, SAFE_ABI, provider);
 
-  // If already enabled, exit early
-  const already = await safeProxy.isModuleEnabled(moduleAddress);
-  if (already) {
-    console.log('Module is already enabled');
-    return;
+  // Check if contract is deployed and initialized
+  try {
+    // If already enabled, exit early
+    const already = await safeProxy.isModuleEnabled(moduleAddress);
+    if (already) {
+      console.log('Module is already enabled');
+      return;
+    }
+  } catch (error: any) {
+    // If we can't decode the result, the Safe might not be fully initialized
+    if (error.code === 'BAD_DATA' && error.value === '0x') {
+      console.log('Safe wallet not fully initialized yet, waiting a moment...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } else {
+      throw error;
+    }
   }
 
-  // First, let's try the direct approach for single-owner Safes
+  // Verify Safe is properly initialized by checking owners and threshold
   try {
-    console.log('Attempting direct enableModule call...');
-    const safeWithSigner = new ethers.Contract(safeAddress, SAFE_ABI, signer);
-    const tx = await safeWithSigner.enableModule(moduleAddress);
-    await tx.wait();
-    console.log('Module enabled via direct call');
-    return;
+    const [owners, threshold] = await Promise.all([
+      safeProxy.getOwners(),
+      safeProxy.getThreshold(),
+    ]);
+    const signerAddress = await signer.getAddress();
+    console.log(`Safe has ${owners.length} owner(s), threshold: ${threshold}`);
+    console.log(`Signer: ${signerAddress}, Owners: ${owners.join(', ')}`);
   } catch (error) {
-    console.log('Direct call failed, trying execTransaction approach...');
+    console.log('Could not verify Safe owners, proceeding anyway...');
   }
 
   // If direct call fails, use execTransaction with proper signature
@@ -88,6 +100,7 @@ export async function enableSafeModule(safeAddress: string, signer: Signer, modu
   const gasPrice = 0;
   const gasToken = ethers.ZeroAddress;
   const refundReceiver = ethers.ZeroAddress;
+
 
   // Use contract to compute tx hash to avoid mismatch
   const safeTxHash = await safeProxy.getTransactionHash(
@@ -130,14 +143,21 @@ export async function enableSafeModule(safeAddress: string, signer: Signer, modu
     signature
   );
 
-  await tx.wait();
+  console.log('Waiting for transaction confirmation...');
+  const receipt = await tx.wait();
+  console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
+
+  // Wait a bit for state to propagate
+  await new Promise(resolve => setTimeout(resolve, 2000));
 
   // Verify module is enabled
   const isNowEnabled = await safeProxy.isModuleEnabled(moduleAddress);
   if (!isNowEnabled) {
+    console.error('Module is still not enabled after transaction');
+    console.error(`Transaction hash: ${receipt.hash}`);
     throw new Error("Module verification failed");
   }
 
-  console.log('Module enabled successfully via execTransaction');
+  console.log('✅ Module enabled successfully via execTransaction');
 }
 

@@ -13,16 +13,26 @@ export async function createSafeWalletForUser(factoryAddress: string, signer: Si
   const factory = new ethers.Contract(factoryAddress, TRIGGERX_SAFE_FACTORY_ABI, signer);
   const tx = await factory.createSafeWallet(user);
   const receipt = await tx.wait();
+  
   // Try to fetch from event; fallback to latestSafeWallet
   const evt = receipt.logs
     .map((l: any) => {
       try { return factory.interface.parseLog(l); } catch { return null; }
     })
     .find((e: any) => e && e.name === 'SafeWalletCreated');
+  
+  let safeAddress: string;
   if (evt && evt.args && evt.args.safeWallet) {
-    return evt.args.safeWallet as string;
+    safeAddress = evt.args.safeWallet as string;
+  } else {
+    safeAddress = await factory.latestSafeWallet(user);
   }
-  return await factory.latestSafeWallet(user);
+  
+  // Wait a bit for the Safe contract to be fully initialized
+  // This is important because Safe proxy contracts need time to be set up
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  return safeAddress;
 }
 
 
