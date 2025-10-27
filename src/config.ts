@@ -20,24 +20,30 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
   '11155420': {
     gasRegistry: '0x664CB20BCEEc9416D290AC820e5446e61a5c75e4',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
+    safeFactory: '0x04359eDC46Cd6C6BD7F6359512984222BE10F8Be',
+    safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
   },
   // Ethereum Sepolia (11155111) - Ethereum Sepolia Testnet
   '11155111': {
     gasRegistry: '0x664CB20BCEEc9416D290AC820e5446e61a5c75e4',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
+    safeFactory: '0xdf76E2A796a206D877086c717979054544B1D9Bc',
+    safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
   },
   // Arbitrum Sepolia (421614) - Arbitrum Sepolia Testnet
   '421614': {
     gasRegistry: '0x664CB20BCEEc9416D290AC820e5446e61a5c75e4',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
-    safeFactory: '0x383D4a61D0B069D02cA2Db5A82003b9561d56e19',
-    safeModule: '0xca3a0c43Ac9E4FcB76C774F330fD31D4098EEacD',
+    safeFactory: '0x04359eDC46Cd6C6BD7F6359512984222BE10F8Be',
+    safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
     // safeSingleton can be provided per deployment (Safe or SafeL2)
   },
   // Base Sepolia (84532) - Base Sepolia Testnet
   '84532': {
     gasRegistry: '0x664CB20BCEEc9416D290AC820e5446e61a5c75e4',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
+    safeFactory: '0x04359eDC46Cd6C6BD7F6359512984222BE10F8Be',
+    safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
   },
 
   // MAINNET CONFIGURATIONS
