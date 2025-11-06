@@ -63,6 +63,10 @@ export function toCreateJobDataFromTime(
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
     is_imua: input.isImua ?? true,
+    is_safe: (input as any).walletMode === 'safe',
+    safe_name: (input as any).safeName || '',
+    safe_address: (input as any).safeAddress || '',
+    language: (input as any).language || '',
   };
 }
 
@@ -96,6 +100,10 @@ export function toCreateJobDataFromEvent(
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
     is_imua: input.isImua ?? true,
+    is_safe: (input as any).walletMode === 'safe',
+    safe_name: (input as any).safeName || '',
+    safe_address: (input as any).safeAddress || '',
+    language: (input as any).language || '',
   };
 }
 
@@ -131,6 +139,10 @@ export function toCreateJobDataFromCondition(
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
     is_imua: input.isImua ?? true,
+    is_safe: (input as any).walletMode === 'safe',
+    safe_name: (input as any).safeName || '',
+    safe_address: (input as any).safeAddress || '',
+    language: (input as any).language || '',
   };
 }
 
