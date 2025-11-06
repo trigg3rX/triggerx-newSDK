@@ -28,11 +28,13 @@ async function main() {
             timeInterval: 60, 
             timezone: 'UTC',
             chainId: '421614', // Arbitrum Sepolia
-            isImua: true,
+            isImua: false,
             dynamicArgumentsScriptUrl: 'https://ipfs.io/ipfs/bafybeib6oh6qmlk5dycaq6stcwi24ukh7dsliqsdqnol5wbkkn4sv5vneq',
             autotopupTG: true,
+            safeName:'nipun-safe',
+            safeAddress: '0xEe611960FC1250eE885A487D981876b63373aa16',
             walletMode: 'safe',
-            safeAddress: '0xEe611960FC1250eE885A487D981876b63373aa16', // Replace with your actual Safe address
+            language:'go',
         };
         
         const safeJobResult = await createJob(client, {
@@ -41,7 +43,7 @@ async function main() {
         });
         
         console.log('Job result:', safeJobResult);
-        console.log('✅ Safe-mode job created successfully!');
+        // console.log('✅ Safe-mode job created successfully!');
         
         // // Example 2: Regular wallet job creation
         // console.log('\n=== Creating Regular Wallet Job ===');
