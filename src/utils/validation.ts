@@ -3,6 +3,7 @@ import {
   TimeBasedJobInput,
   EventBasedJobInput,
   ConditionBasedJobInput,
+  SafeTransaction,
 } from '../types';
 import { ValidationError } from './errors';
 
@@ -69,6 +70,28 @@ function validateStaticArguments(abiString: string, targetFunction: string, args
   }
 }
 
+function validateSafeTransactions(transactions?: SafeTransaction[]): void {
+  if (!transactions || !Array.isArray(transactions) || transactions.length === 0) {
+    throw new ValidationError('safeTransactions', 'safeTransactions array is required and must contain at least one transaction for static safe wallet jobs.');
+  }
+  
+  for (let i = 0; i < transactions.length; i++) {
+    const tx = transactions[i];
+    if (!tx || typeof tx !== 'object') {
+      throw new ValidationError('safeTransactions', `Transaction at index ${i} is invalid.`);
+    }
+    if (!isNonEmptyString(tx.to) || !ethers.isAddress(tx.to)) {
+      throw new ValidationError('safeTransactions', `Transaction at index ${i}: 'to' must be a valid Ethereum address.`);
+    }
+    if (typeof tx.value !== 'string') {
+      throw new ValidationError('safeTransactions', `Transaction at index ${i}: 'value' must be a string representing wei amount.`);
+    }
+    if (!isNonEmptyString(tx.data) || !tx.data.startsWith('0x')) {
+      throw new ValidationError('safeTransactions', `Transaction at index ${i}: 'data' must be a hex string starting with 0x.`);
+    }
+  }
+}
+
 export function validateTimeBasedJobInput(input: TimeBasedJobInput, argType: 'static' | 'dynamic' | 1 | 2 | undefined): void {
   if (!isNonEmptyString(input.jobTitle)) {
     throw new ValidationError('jobTitle', 'Job title is required.');
@@ -103,18 +126,37 @@ export function validateTimeBasedJobInput(input: TimeBasedJobInput, argType: 'st
     throw new ValidationError('scheduleType', 'scheduleType must be one of interval | cron | specific.');
   }
 
-  if (input.walletMode !== 'safe') {
-    validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
-  }
-
   // Arg type checks
   const isDynamic = argType === 'dynamic' || argType === 2;
-  if (isDynamic) {
-    if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
-      throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
+  
+  // Safe wallet mode validation
+  if (input.walletMode === 'safe') {
+    // Ensure static and dynamic are mutually exclusive
+    if (isDynamic && input.safeTransactions && input.safeTransactions.length > 0) {
+      throw new ValidationError('safeTransactions', 'Cannot provide both dynamicArgumentsScriptUrl and safeTransactions. Use one or the other.');
+    }
+    if (!isDynamic && !input.safeTransactions) {
+      throw new ValidationError('safeTransactions', 'For static safe wallet jobs, either provide safeTransactions or use dynamicArgumentsScriptUrl for dynamic jobs.');
+    }
+    
+    if (isDynamic) {
+      // Dynamic safe wallet job
+      if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
+        throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
+      }
+    } else {
+      // Static safe wallet job
+      validateSafeTransactions(input.safeTransactions);
     }
   } else {
-    if (input.walletMode !== 'safe') {
+    // Regular wallet mode
+    validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+    
+    if (isDynamic) {
+      if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
+        throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
+      }
+    } else {
       validateStaticArguments(input.abi as string, input.targetFunction as string, input.arguments, 'contract');
     }
   }
@@ -137,17 +179,38 @@ export function validateEventBasedJobInput(input: EventBasedJobInput, argType: '
     throw new ValidationError('triggerChainId', 'Trigger chain ID is required.');
   }
   validateContractBasics(input.triggerContractAddress, input.abi as string, input.triggerEvent, 'eventContract');
-  if (input.walletMode !== 'safe') {
-    validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
-  }
 
+  // Arg type checks
   const isDynamic = argType === 'dynamic' || argType === 2;
-  if (isDynamic) {
-    if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
-      throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
+  
+  // Safe wallet mode validation
+  if (input.walletMode === 'safe') {
+    // Ensure static and dynamic are mutually exclusive
+    if (isDynamic && input.safeTransactions && input.safeTransactions.length > 0) {
+      throw new ValidationError('safeTransactions', 'Cannot provide both dynamicArgumentsScriptUrl and safeTransactions. Use one or the other.');
+    }
+    if (!isDynamic && !input.safeTransactions) {
+      throw new ValidationError('safeTransactions', 'For static safe wallet jobs, either provide safeTransactions or use dynamicArgumentsScriptUrl for dynamic jobs.');
+    }
+    
+    if (isDynamic) {
+      // Dynamic safe wallet job
+      if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
+        throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
+      }
+    } else {
+      // Static safe wallet job
+      validateSafeTransactions(input.safeTransactions);
     }
   } else {
-    if (input.walletMode !== 'safe') {
+    // Regular wallet mode
+    validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+    
+    if (isDynamic) {
+      if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
+        throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
+      }
+    } else {
       validateStaticArguments(input.abi as string, input.targetFunction as string, input.arguments, 'contract');
     }
   }
@@ -187,17 +250,37 @@ export function validateConditionBasedJobInput(input: ConditionBasedJobInput, ar
     }
   }
 
-  if (input.walletMode !== 'safe') {
-    validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
-  }
-
+  // Arg type checks
   const isDynamic = argType === 'dynamic' || argType === 2;
-  if (isDynamic) {
-    if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
-      throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
+  
+  // Safe wallet mode validation
+  if (input.walletMode === 'safe') {
+    // Ensure static and dynamic are mutually exclusive
+    if (isDynamic && input.safeTransactions && input.safeTransactions.length > 0) {
+      throw new ValidationError('safeTransactions', 'Cannot provide both dynamicArgumentsScriptUrl and safeTransactions. Use one or the other.');
+    }
+    if (!isDynamic && !input.safeTransactions) {
+      throw new ValidationError('safeTransactions', 'For static safe wallet jobs, either provide safeTransactions or use dynamicArgumentsScriptUrl for dynamic jobs.');
+    }
+    
+    if (isDynamic) {
+      // Dynamic safe wallet job
+      if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
+        throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
+      }
+    } else {
+      // Static safe wallet job
+      validateSafeTransactions(input.safeTransactions);
     }
   } else {
-    if (input.walletMode !== 'safe') {
+    // Regular wallet mode
+    validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+    
+    if (isDynamic) {
+      if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
+        throw new ValidationError('contractIpfs', 'IPFS Code URL is required and must be valid for dynamic argument type.');
+      }
+    } else {
       validateStaticArguments(input.abi as string, input.targetFunction as string, input.arguments, 'contract');
     }
   }
