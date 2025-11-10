@@ -286,6 +286,20 @@ console.log(jobData);
 
 ---
 
+#### 📋 Get All Jobs for a User Address
+
+```ts
+import { getJobsByUserAddress } from 'sdk-triggerx';
+
+const userAddress = '0x...';
+const jobsByUser = await getJobsByUserAddress(client, userAddress);
+console.log(jobsByUser);
+```
+
+> **Note:** This fetches all jobs belonging to the specified user address from the `/api/jobs/user/:user_address` endpoint.
+
+---
+
 ### 4. Delete a Job
 
 ```ts
