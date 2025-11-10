@@ -36,54 +36,42 @@ const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafk
 function encodeMultisendData(transactions: SafeTransaction[]): string {
   // Multisend format: for each transaction, encode as:
   // operation (1 byte) + to (20 bytes) + value (32 bytes) + dataLength (32 bytes) + data (variable)
-  let encodedData = '0x';
-  
+  let encodedTransactions = '';
+
   for (const tx of transactions) {
-    const to = tx.to;
-    const value = ethers.toBigInt(tx.value);
-    const data = tx.data;
-    
+    const txWithOperation = tx as SafeTransaction & { operation?: number };
+    const to = txWithOperation.to;
+    const value = ethers.toBigInt(txWithOperation.value);
+    const data = txWithOperation.data;
+
     // Remove 0x prefix from data if present
     const dataWithoutPrefix = data.startsWith('0x') ? data.slice(2) : data;
     const dataLength = ethers.toBigInt(dataWithoutPrefix.length / 2);
-    
+
     // Encode each field and concatenate
     // operation: uint8 (1 byte)
-    const operationHex = '0x';
+    const operation = typeof txWithOperation.operation === 'number' ? txWithOperation.operation : 0;
+    if (operation < 0 || operation > 1) {
+      throw new Error(`Invalid Safe transaction operation: ${operation}. Expected 0 (CALL) or 1 (DELEGATECALL).`);
+    }
+    const operationHex = operation.toString(16).padStart(2, '0');
     // to: address (20 bytes)
-    const toHex = to.toLowerCase().replace('0x', '').padStart(40, '0');
+    const toHex = to.toLowerCase().replace(/^0x/, '').padStart(40, '0');
     // value: uint256 (32 bytes)
     const valueHex = value.toString(16).padStart(64, '0');
     // dataLength: uint256 (32 bytes)
     const dataLengthHex = dataLength.toString(16).padStart(64, '0');
     // data: bytes (variable length)
-    
-    encodedData += operationHex + toHex + valueHex + dataLengthHex + dataWithoutPrefix;
-  }
-  
-  return encodedData;
-}
 
-// Helper function to encode a single function call
-function encodeSingleFunctionCall(
-  targetContractAddress: string,
-  targetFunction: string,
-  abi: string,
-  args?: string[]
-): { actionTarget: string; actionValue: string; actionData: string; operation: number } {
-  // Parse ABI to get the interface
-  const parsedAbi = JSON.parse(abi);
-  const iface = new ethers.Interface(parsedAbi);
-  
-  // Encode the function call
-  const actionData = iface.encodeFunctionData(targetFunction, args || []);
-  
-  return {
-    actionTarget: targetContractAddress,
-    actionValue: '0', // Default to 0, can be overridden
-    actionData,
-    operation: 0, // CALL
-  };
+    encodedTransactions += operationHex + toHex + valueHex + dataLengthHex + dataWithoutPrefix;
+  }
+
+  const packedTransactions = `0x${encodedTransactions}`;
+  const multiSendInterface = new ethers.Interface([
+    'function multiSend(bytes transactions)'
+  ]);
+
+  return multiSendInterface.encodeFunctionData('multiSend', [packedTransactions]);
 }
 
 export function toCreateJobDataFromTime(
@@ -360,6 +348,7 @@ export async function createJob(
           tx.to,
           tx.value,
           tx.data,
+          0 // CALL
         ];
       } else {
         // Multiple transactions: use multisend
@@ -375,7 +364,7 @@ export async function createJob(
           multisendCallOnly,
           '0',
           encodedMultisendData,
-          '1' // DELEGATECALL
+          1 // DELEGATECALL
         ];
       }
     } else {
