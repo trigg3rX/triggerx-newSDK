@@ -277,9 +277,12 @@ console.log(jobs);
 import { getJobDataById } from 'sdk-triggerx';
 
 const jobId = 'YOUR_JOB_ID';
-const jobData = await getJobDataById(client, jobId);
+const userAddress = '0x...'; // The address that owns the job
+const jobData = await getJobDataById(client, jobId, userAddress);
 console.log(jobData);
 ```
+
+> **Note:** The job data API now requires both the `jobId` and the user’s address as parameters. Passing both is mandatory; otherwise, you will receive a validation error from the backend.
 
 ---
 
@@ -335,4 +338,5 @@ Includes:
 ## 📝 License
 
 **MIT License**
+
 
