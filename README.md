@@ -138,6 +138,7 @@ const jobInput = {
 
   // Dynamic params fetched from IPFS/URL script at execution time
   dynamicArgumentsScriptUrl: 'https://your-ipfs-gateway/ipfs/your-hash',
+  language:'', //Your code language exmampel->  language:'go',
 
   // Optional helper to auto-top up TG if low
   autotopupTG: true,
@@ -177,6 +178,7 @@ const jobInput = {
 
   arguments: [],                         // Target function args as strings
   dynamicArgumentsScriptUrl: 'https://your-ipfs-url', // Script URL for dynamic args
+  language:'', //Your code language exmampel->  language:'go',
   isImua: false,                          // Optional feature flag
   autotopupTG: true,                     // Auto top-up TG if balance is low
 };
@@ -356,6 +358,7 @@ const jobInput = {
   walletMode: 'safe',
   safeAddress: '0xYourSafeAddress',
   dynamicArgumentsScriptUrl: 'https://your-ipfs-gateway/ipfs/your-hash',
+  language:'go', //Your code language exmampel->  language:'go',
   autotopupTG: true,
 };
 

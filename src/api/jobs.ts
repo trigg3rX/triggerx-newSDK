@@ -104,11 +104,11 @@ export function toCreateJobDataFromTime(
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
-    is_imua: input.isImua ?? true,
+    is_imua: input.isImua ?? false,
     is_safe: (input as any).walletMode === 'safe',
     safe_name: (input as any).safeName || '',
     safe_address: (input as any).safeAddress || '',
-    language: (input as any).language || '',
+    language: (input as any).language || 'go',
   };
 }
 
@@ -141,11 +141,11 @@ export function toCreateJobDataFromEvent(
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
-    is_imua: input.isImua ?? true,
+    is_imua: input.isImua ?? false,
     is_safe: (input as any).walletMode === 'safe',
     safe_name: (input as any).safeName || '',
     safe_address: (input as any).safeAddress || '',
-    language: (input as any).language || '',
+    language: (input as any).language || 'go',
   };
 }
 
@@ -180,11 +180,11 @@ export function toCreateJobDataFromCondition(
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
-    is_imua: input.isImua ?? true,
+    is_imua: input.isImua ?? false,
     is_safe: (input as any).walletMode === 'safe',
     safe_name: (input as any).safeName || '',
     safe_address: (input as any).safeAddress || '',
-    language: (input as any).language || '',
+    language: (input as any).language || 'go',
   };
 }
 
@@ -315,16 +315,24 @@ export async function createJob(
 
     // Auto-set module target; user does not need to pass targetContractAddress in safe mode
     (jobInput as any).targetContractAddress = safeModule;
-    (jobInput as any).targetFunction = 'execJobFromHub(address,address,uint256,bytes,uint8)';
+    // Function signature must match exactly as in ABI
+    (jobInput as any).targetFunction = 'execJobFromHub';
+    // ABI verified per provided interface and matches execJobFromHub
     (jobInput as any).abi = JSON.stringify([
       {
-        "type": "function", "name": "execJobFromHub", "stateMutability": "nonpayable", "inputs": [
-          { "name": "safeAddress", "type": "address" },
-          { "name": "actionTarget", "type": "address" },
-          { "name": "actionValue", "type": "uint256" },
-          { "name": "actionData", "type": "bytes" },
-          { "name": "operation", "type": "uint8" }
-        ], "outputs": [{ "type": "bool", "name": "success" }]
+        "inputs": [
+          { "internalType": "address", "name": "safeAddress", "type": "address" },
+          { "internalType": "address", "name": "actionTarget", "type": "address" },
+          { "internalType": "uint256", "name": "actionValue", "type": "uint256" },
+          { "internalType": "bytes", "name": "actionData", "type": "bytes" },
+          { "internalType": "uint8", "name": "operation", "type": "uint8" }
+        ],
+        "name": "execJobFromHub",
+        "outputs": [
+          { "internalType": "bool", "name": "success", "type": "bool" }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
       }
     ]);
 
@@ -348,7 +356,7 @@ export async function createJob(
           tx.to,
           tx.value,
           tx.data,
-          0 // CALL
+          '0' // CALL
         ];
       } else {
         // Multiple transactions: use multisend
@@ -364,7 +372,7 @@ export async function createJob(
           multisendCallOnly,
           '0',
           encodedMultisendData,
-          1 // DELEGATECALL
+          '1' // DELEGATECALL
         ];
       }
     } else {
@@ -622,6 +630,8 @@ export async function createJob(
       token_balance: typeof jobData.token_balance === 'bigint' ? Number(jobData.token_balance) : Number(jobData.token_balance),
     } as any;
 
+    console.log('jobDataForApi', jobDataForApi);
+
     const res = await client.post<any>(
       '/api/jobs',
       [jobDataForApi],
@@ -629,6 +639,8 @@ export async function createJob(
         headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
       }
     );
+
+
     return { success: true, data: res };
   } catch (error) {
     const httpStatusCode = extractHttpStatusCode(error);

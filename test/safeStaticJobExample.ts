@@ -24,7 +24,7 @@ async function main() {
         timezone: 'UTC',
         chainId: '421614',
         walletMode: 'safe',
-        safeAddress: '0x87EB883e8ae00120EF2c6Fd49b1F8A149E2172f4',
+        safeAddress: '0xEe611960FC1250eE885A487D981876b63373aa16',
         safeTransactions: [
             {
                 to: '0xa76Cacba495CafeaBb628491733EB86f1db006dF',
@@ -51,7 +51,7 @@ async function main() {
     const tokenIn = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';  // USDC (Arbitrum Sepolia)
     const tokenOut = '0x980B62Da83eFf3D4576C647993b0c1D7faf17c73'; // WETH (Arbitrum Sepolia)
     const router = '0x101F443B4d1b059569D643917553c771E1b9663E';  // Uniswap V3 SwapRouter
-    const safeAddress = '0x87EB883e8ae00120EF2c6Fd49b1F8A149E2172f4';
+    const safeAddress = '0xEe611960FC1250eE885A487D981876b63373aa16';
     const amountIn = '10000'; // 0.01 USDC (6 decimals)
     const fee = 3000; // 0.3%
     const minOut = '0'; // Minimum output (set to 0 for this example)
