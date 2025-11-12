@@ -5,6 +5,7 @@ import {
   ConditionBasedJobInput,
   CreateJobData,
   JobResponse,
+  SafeTransaction,
 } from '../types';
 import { createJobOnChain } from '../contracts/JobRegistry';
 import { ethers, Signer } from 'ethers';
@@ -31,6 +32,47 @@ import { createSafeWalletForUser } from '../contracts/safe/SafeFactory';
 const JOB_ID = '300949528249665590178224313442040528409305273634097553067152835846309150732';
 const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
 
+// Helper function to encode multisend batch transactions
+function encodeMultisendData(transactions: SafeTransaction[]): string {
+  // Multisend format: for each transaction, encode as:
+  // operation (1 byte) + to (20 bytes) + value (32 bytes) + dataLength (32 bytes) + data (variable)
+  let encodedTransactions = '';
+
+  for (const tx of transactions) {
+    const txWithOperation = tx as SafeTransaction & { operation?: number };
+    const to = txWithOperation.to;
+    const value = ethers.toBigInt(txWithOperation.value);
+    const data = txWithOperation.data;
+
+    // Remove 0x prefix from data if present
+    const dataWithoutPrefix = data.startsWith('0x') ? data.slice(2) : data;
+    const dataLength = ethers.toBigInt(dataWithoutPrefix.length / 2);
+
+    // Encode each field and concatenate
+    // operation: uint8 (1 byte)
+    const operation = typeof txWithOperation.operation === 'number' ? txWithOperation.operation : 0;
+    if (operation < 0 || operation > 1) {
+      throw new Error(`Invalid Safe transaction operation: ${operation}. Expected 0 (CALL) or 1 (DELEGATECALL).`);
+    }
+    const operationHex = operation.toString(16).padStart(2, '0');
+    // to: address (20 bytes)
+    const toHex = to.toLowerCase().replace(/^0x/, '').padStart(40, '0');
+    // value: uint256 (32 bytes)
+    const valueHex = value.toString(16).padStart(64, '0');
+    // dataLength: uint256 (32 bytes)
+    const dataLengthHex = dataLength.toString(16).padStart(64, '0');
+    // data: bytes (variable length)
+
+    encodedTransactions += operationHex + toHex + valueHex + dataLengthHex + dataWithoutPrefix;
+  }
+
+  const packedTransactions = `0x${encodedTransactions}`;
+  const multiSendInterface = new ethers.Interface([
+    'function multiSend(bytes transactions)'
+  ]);
+
+  return multiSendInterface.encodeFunctionData('multiSend', [packedTransactions]);
+}
 
 export function toCreateJobDataFromTime(
   input: TimeBasedJobInput,
@@ -62,11 +104,11 @@ export function toCreateJobDataFromTime(
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
-    is_imua: input.isImua ?? true,
+    is_imua: input.isImua ?? false,
     is_safe: (input as any).walletMode === 'safe',
     safe_name: (input as any).safeName || '',
     safe_address: (input as any).safeAddress || '',
-    language: (input as any).language || '',
+    language: (input as any).language || 'go',
   };
 }
 
@@ -99,11 +141,11 @@ export function toCreateJobDataFromEvent(
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
-    is_imua: input.isImua ?? true,
+    is_imua: input.isImua ?? false,
     is_safe: (input as any).walletMode === 'safe',
     safe_name: (input as any).safeName || '',
     safe_address: (input as any).safeAddress || '',
-    language: (input as any).language || '',
+    language: (input as any).language || 'go',
   };
 }
 
@@ -138,11 +180,11 @@ export function toCreateJobDataFromCondition(
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
-    is_imua: input.isImua ?? true,
+    is_imua: input.isImua ?? false,
     is_safe: (input as any).walletMode === 'safe',
     safe_name: (input as any).safeName || '',
     safe_address: (input as any).safeAddress || '',
-    language: (input as any).language || '',
+    language: (input as any).language || 'go',
   };
 }
 
@@ -224,7 +266,7 @@ export async function createJob(
   }
 
   const chainIdStr = network?.chainId ? network.chainId.toString() : undefined;
-  const { jobRegistry, safeModule, safeFactory } = getChainAddresses(chainIdStr);
+  const { jobRegistry, safeModule, safeFactory, multisendCallOnly } = getChainAddresses(chainIdStr);
   const JOB_REGISTRY_ADDRESS = jobRegistry;
   if (!JOB_REGISTRY_ADDRESS) {
     return createErrorResponse(
@@ -250,13 +292,6 @@ export async function createJob(
       );
     }
 
-    const dynUrl = (jobInput as any).dynamicArgumentsScriptUrl;
-    if (!dynUrl) {
-      return createErrorResponse(
-        new ValidationError('dynamicArgumentsScriptUrl', 'Safe jobs require dynamicArgumentsScriptUrl (IPFS) for parameters.'),
-        'Validation error'
-      );
-    }
     // Validate Safe has single owner and owner matches signer
     try {
       await ensureSingleOwnerAndMatchSigner(
@@ -280,20 +315,70 @@ export async function createJob(
 
     // Auto-set module target; user does not need to pass targetContractAddress in safe mode
     (jobInput as any).targetContractAddress = safeModule;
-    (jobInput as any).targetFunction = 'execJobFromHub(address,address,uint256,bytes,uint8)';
+    // Function signature must match exactly as in ABI
+    (jobInput as any).targetFunction = 'execJobFromHub';
+    // ABI verified per provided interface and matches execJobFromHub
     (jobInput as any).abi = JSON.stringify([
       {
-        "type": "function", "name": "execJobFromHub", "stateMutability": "nonpayable", "inputs": [
-          { "name": "safeAddress", "type": "address" },
-          { "name": "actionTarget", "type": "address" },
-          { "name": "actionValue", "type": "uint256" },
-          { "name": "actionData", "type": "bytes" },
-          { "name": "operation", "type": "uint8" }
-        ], "outputs": [{ "type": "bool", "name": "success" }]
+        "inputs": [
+          { "internalType": "address", "name": "safeAddress", "type": "address" },
+          { "internalType": "address", "name": "actionTarget", "type": "address" },
+          { "internalType": "uint256", "name": "actionValue", "type": "uint256" },
+          { "internalType": "bytes", "name": "actionData", "type": "bytes" },
+          { "internalType": "uint8", "name": "operation", "type": "uint8" }
+        ],
+        "name": "execJobFromHub",
+        "outputs": [
+          { "internalType": "bool", "name": "success", "type": "bool" }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
       }
     ]);
-    // Ensure we don't carry static args in safe mode
-    (jobInput as any).arguments = undefined;
+
+    // Handle static vs dynamic safe wallet jobs
+    const hasDynamicUrl = !!(jobInput as any).dynamicArgumentsScriptUrl;
+    const hasSafeTransactions = !!((jobInput as any).safeTransactions && (jobInput as any).safeTransactions.length > 0);
+    
+    if (hasDynamicUrl) {
+      // Dynamic safe wallet job - keep existing behavior
+      (jobInput as any).arguments = undefined;
+    } else if (hasSafeTransactions) {
+      // Static safe wallet job - encode transactions into arguments
+      const safeTransactions = (jobInput as any).safeTransactions as SafeTransaction[];
+      const safeAddress = (jobInput as any).safeAddress as string;
+      
+      if (safeTransactions.length === 1) {
+        // Single transaction: use transaction directly
+        const tx = safeTransactions[0];
+        (jobInput as any).arguments = [
+          safeAddress,
+          tx.to,
+          tx.value,
+          tx.data,
+          '0' // CALL
+        ];
+      } else {
+        // Multiple transactions: use multisend
+        if (!multisendCallOnly) {
+          return createErrorResponse(
+            new ConfigurationError('MultisendCallOnly address not configured for this chain.'),
+            'Configuration error'
+          );
+        }
+        const encodedMultisendData = encodeMultisendData(safeTransactions);
+        (jobInput as any).arguments = [
+          safeAddress,
+          multisendCallOnly,
+          '0',
+          encodedMultisendData,
+          '1' // DELEGATECALL
+        ];
+      }
+    } else {
+      // Will be caught by validation
+      (jobInput as any).arguments = undefined;
+    }
   }
 
   // 0. Validate user input thoroughly before proceeding (after safe overrides)
@@ -545,6 +630,8 @@ export async function createJob(
       token_balance: typeof jobData.token_balance === 'bigint' ? Number(jobData.token_balance) : Number(jobData.token_balance),
     } as any;
 
+    console.log('jobDataForApi', jobDataForApi);
+
     const res = await client.post<any>(
       '/api/jobs',
       [jobDataForApi],
@@ -552,6 +639,8 @@ export async function createJob(
         headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
       }
     );
+
+
     return { success: true, data: res };
   } catch (error) {
     const httpStatusCode = extractHttpStatusCode(error);

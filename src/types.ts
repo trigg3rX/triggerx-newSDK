@@ -55,6 +55,13 @@ export enum ArgType {
 
 export type WalletMode = 'regular' | 'safe';
 
+// Safe transaction interface for static safe wallet jobs
+export interface SafeTransaction {
+  to: string;           // Target contract address
+  value: string;        // Value in wei (as string to handle large numbers)
+  data: string;         // Encoded function call data (hex string with 0x prefix)
+}
+
 // Discriminated union for job input
 export type CreateJobInput =
   | (TimeBasedJobInput & { jobType: JobType.Time; argType: ArgType.Static | ArgType.Dynamic })
@@ -88,6 +95,13 @@ export interface TimeBasedJobInput {
    * Required if walletMode is 'safe'.
    */
   safeAddress?: string;
+  /**
+   * Array of transactions for safe wallet jobs with static parameters.
+   * If length === 1: single call (operation 0)
+   * If length > 1: batch call via multisend (operation 1)
+   * Only used when walletMode is 'safe' and argType is 'static'.
+   */
+  safeTransactions?: SafeTransaction[];
 }
 
 export interface EventBasedJobInput {
@@ -115,6 +129,13 @@ export interface EventBasedJobInput {
    * Required if walletMode is 'safe'.
    */
   safeAddress?: string;
+  /**
+   * Array of transactions for safe wallet jobs with static parameters.
+   * If length === 1: single call (operation 0)
+   * If length > 1: batch call via multisend (operation 1)
+   * Only used when walletMode is 'safe' and argType is 'static'.
+   */
+  safeTransactions?: SafeTransaction[];
 }
 
 export interface ConditionBasedJobInput {
@@ -144,6 +165,13 @@ export interface ConditionBasedJobInput {
    * Required if walletMode is 'safe'.
    */
   safeAddress?: string;
+  /**
+   * Array of transactions for safe wallet jobs with static parameters.
+   * If length === 1: single call (operation 0)
+   * If length > 1: batch call via multisend (operation 1)
+   * Only used when walletMode is 'safe' and argType is 'static'.
+   */
+  safeTransactions?: SafeTransaction[];
 }
 
 // Internal type matching backend struct
