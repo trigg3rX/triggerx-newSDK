@@ -28,10 +28,6 @@ import {
 } from '../utils/errors';
 import { enableSafeModule, ensureSingleOwnerAndMatchSigner } from '../contracts/safe/SafeWallet';
 import { createSafeWalletForUser } from '../contracts/safe/SafeFactory';
-
-const JOB_ID = '300949528249665590178224313442040528409305273634097553067152835846309150732';
-const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
-
 // Helper function to encode multisend batch transactions
 function encodeMultisendData(transactions: SafeTransaction[]): string {
   // Multisend format: for each transaction, encode as:
@@ -81,7 +77,7 @@ export function toCreateJobDataFromTime(
   jobCostPrediction: number,
 ): CreateJobData {
   return {
-    job_id: JOB_ID,
+    job_id: "",
     user_address: userAddress,
     ether_balance: balances.etherBalance,
     token_balance: balances.tokenBalanceWei,
@@ -119,7 +115,7 @@ export function toCreateJobDataFromEvent(
   jobCostPrediction: number,
 ): CreateJobData {
   return {
-    job_id: JOB_ID,
+    job_id: "",
     user_address: userAddress,
     ether_balance: balances.etherBalance,
     token_balance: balances.tokenBalanceWei,
@@ -156,7 +152,7 @@ export function toCreateJobDataFromCondition(
   jobCostPrediction: number,
 ): CreateJobData {
   return {
-    job_id: JOB_ID,
+    job_id: "",
     user_address: userAddress,
     ether_balance: balances.etherBalance,
     token_balance: balances.tokenBalanceWei,
@@ -531,9 +527,10 @@ export async function createJob(
   // If you want to automate, you can add a `proceed` flag to params in the future.
 
   // Check if the user has enough TG to cover the job cost prediction
+  // Use chainId if available, so we can use SDK RPC provider even if user's RPC fails
   let tgBalanceWei: bigint, tgBalance: string;
   try {
-    const balanceResult = await checkTgBalance(signer);
+    const balanceResult = await checkTgBalance(signer, chainIdStr);
     if (!balanceResult.success || !balanceResult.data) {
       return createErrorResponse(
         new BalanceError('Failed to check TG balance', balanceResult.details),
