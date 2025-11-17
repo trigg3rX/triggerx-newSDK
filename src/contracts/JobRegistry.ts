@@ -37,10 +37,50 @@ export async function createJobOnChain({
     signer,
     chainId
   );
+  const signerAddress = await signer.getAddress();
 
-  // Use contractWithSigner for transaction (signing)
-  // Use contract for reading/parsing logs (SDK RPC)
-  const tx = await (contractWithSigner as any).createJob(jobTitle, jobType, timeFrame, targetContractAddress, encodedData);
+  let tx;
+  try {
+    console.log('Estimating gas for createJob using SDK RPC provider...');
+    const estimatedGas: bigint = await (contract as any).createJob.estimateGas(
+      jobTitle,
+      jobType,
+      timeFrame,
+      targetContractAddress,
+      encodedData,
+      {
+        from: signerAddress,
+      }
+    );
+    console.log('Estimated gas (createJob):', estimatedGas.toString());
+    const gasWithBuffer = (estimatedGas * BigInt(110)) / BigInt(100);
+    console.log('Gas with 10% buffer (createJob):', gasWithBuffer.toString());
+
+    // Use contractWithSigner for transaction (signing)
+    // Use contract for reading/parsing logs (SDK RPC)
+    tx = await (contractWithSigner as any).createJob(
+      jobTitle,
+      jobType,
+      timeFrame,
+      targetContractAddress,
+      encodedData,
+      {
+        gasLimit: gasWithBuffer,
+      }
+    );
+  } catch (gasEstimateError) {
+    console.warn(
+      'Gas estimation failed for createJob (using SDK RPC), proceeding without explicit gas limit:',
+      gasEstimateError
+    );
+    tx = await (contractWithSigner as any).createJob(
+      jobTitle,
+      jobType,
+      timeFrame,
+      targetContractAddress,
+      encodedData
+    );
+  }
   const receipt = await tx.wait();
 
   // Try to extract jobId from event logs (assume event is JobCreated(jobId,...))
@@ -70,13 +110,33 @@ export async function deleteJobOnChain({
 }: DeleteJobOnChainParams): Promise<void> {
   // Resolve chain ID and create contract with SDK RPC provider
   const chainId = await resolveChainId(signer);
-  const { contractWithSigner } = await createContractWithSdkRpcAndSigner(
+  const { contract, contractWithSigner } = await createContractWithSdkRpcAndSigner(
     contractAddress,
     abi.abi || abi,
     signer,
     chainId
   );
+  const signerAddress = await signer.getAddress();
 
-  const tx = await (contractWithSigner as any).deleteJob(jobId);
-  await tx.wait();
-} 
+  try {
+    console.log('Estimating gas for deleteJob using SDK RPC provider...');
+    const estimatedGas: bigint = await (contract as any).deleteJob.estimateGas(jobId, {
+      from: signerAddress,
+    });
+    console.log('Estimated gas (deleteJob):', estimatedGas.toString());
+    const gasWithBuffer = (estimatedGas * BigInt(110)) / BigInt(100);
+    console.log('Gas with 10% buffer (deleteJob):', gasWithBuffer.toString());
+
+    const tx = await (contractWithSigner as any).deleteJob(jobId, {
+      gasLimit: gasWithBuffer,
+    });
+    await tx.wait();
+  } catch (gasEstimateError) {
+    console.warn(
+      'Gas estimation failed for deleteJob (using SDK RPC), proceeding without explicit gas limit:',
+      gasEstimateError
+    );
+    const tx = await (contractWithSigner as any).deleteJob(jobId);
+    await tx.wait();
+  }
+}

@@ -638,7 +638,7 @@ export async function createJob(
       token_balance: typeof jobData.token_balance === 'bigint' ? Number(jobData.token_balance) : Number(jobData.token_balance),
     } as any;
 
-    console.log('jobDataForApi', jobDataForApi);
+    // console.log('jobDataForApi', jobDataForApi);
 
     const res = await client.post<any>(
       '/api/jobs',
