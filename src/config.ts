@@ -87,7 +87,23 @@ export function getRpcProvider(chainId: string | number | undefined): ethers.Jso
   if (!rpcUrl) {
     return null;
   }
-  return new ethers.JsonRpcProvider(rpcUrl);
+  
+  // Convert chainId to number for network configuration
+  const chainIdNum = chainId ? Number(chainId) : undefined;
+  
+  if (!chainIdNum) {
+    // If no chainId, create provider without network (will auto-detect)
+    return new ethers.JsonRpcProvider(rpcUrl);
+  }
+  
+  // Create a Network object with the chainId to explicitly set the network
+  // This prevents the provider from trying to auto-detect the network,
+  // which can cause timeouts when the RPC is slow or unresponsive
+  const network = ethers.Network.from(chainIdNum);
+  
+  // Create provider with explicit network to skip network detection
+  // This prevents timeout issues when RPC is slow or unresponsive
+  return new ethers.JsonRpcProvider(rpcUrl, network);
 }
 
 export function getChainAddresses(chainId: string | number | undefined) {

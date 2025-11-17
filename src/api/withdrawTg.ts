@@ -1,6 +1,10 @@
 import { ethers } from 'ethers';
 import gasRegistryAbi from '../contracts/abi/GasRegistry.json';
-import { getChainAddresses } from '../config';
+import { 
+  createContractWithSdkRpcAndSigner,
+  getContractAddress,
+  resolveChainId
+} from '../contracts/contractUtils';
 import { 
   ValidationError, 
   NetworkError, 
@@ -35,23 +39,38 @@ export const withdrawTg = async (
     }
 
     try {
-        const network = await signer.provider?.getNetwork();
-        const chainId = network?.chainId ? network.chainId.toString() : undefined;
-        const { gasRegistry } = getChainAddresses(chainId);
-        const gasRegistryContractAddress = gasRegistry;
+        // Resolve chain ID and create contract instances with SDK RPC provider
+        let resolvedChainId: string;
+        let contractWithSigner: ethers.BaseContract;
         
-        if (!gasRegistryContractAddress) {
+        try {
+            // Resolve chain ID from signer
+            resolvedChainId = await resolveChainId(signer);
+            
+            // Get contract address
+            const gasRegistryContractAddress = getContractAddress(resolvedChainId, 'gasRegistry');
+            
+            // Create contract instances with SDK RPC provider
+            const contractInstances = await createContractWithSdkRpcAndSigner(
+                gasRegistryContractAddress,
+                gasRegistryAbi,
+                signer,
+                resolvedChainId
+            );
+            contractWithSigner = contractInstances.contractWithSigner;
+        } catch (configError) {
+            if (configError instanceof ConfigurationError) {
+                return createErrorResponse(configError, 'Configuration error');
+            }
             return createErrorResponse(
-                new ConfigurationError(`GasRegistry address not configured for chain ID: ${chainId}`),
+                new ConfigurationError('Failed to initialize contract', { originalError: configError }),
                 'Configuration error'
             );
         }
 
-        const contract = new ethers.Contract(gasRegistryContractAddress, gasRegistryAbi, signer);
-
         // Assumes the contract has a function: claimEthForTg(uint256 amount)
         const amountTGWei = ethers.parseEther(amountTG.toString());
-        const tx = await contract.claimETHForTG(amountTGWei);
+        const tx = await (contractWithSigner as any).claimETHForTG(amountTGWei);
         await tx.wait();
         return { success: true, data: tx };
     } catch (error) {

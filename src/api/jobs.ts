@@ -480,7 +480,9 @@ export async function createJob(
   }
 
   // Set job_cost_prediction
-  let job_cost_prediction: number = 0.1 * noOfExecutions; // default for static
+  // ethers.parseEther expects a string, so we construct the ether amount string safely
+  let job_cost_prediction: number = Number(ethers.parseEther((0.1 * noOfExecutions).toString()).toString()); // default for static
+  // console.log('job_cost_prediction', job_cost_prediction);
 
   if (argType === 2) {
     // Dynamic: call backend API to get fee
@@ -500,8 +502,13 @@ export async function createJob(
         '/api/fees',
         { params: { ipfs_url } }
       );
+      // console.log('feeRes', feeRes);
+      // console.log('feeRes.total_fee', feeRes.total_fee);
+      // console.log('typeof feeRes', typeof feeRes);
+      // console.log('typeof feeRes.total_fee', typeof feeRes.total_fee);
       // The API now returns { total_fee: number }
       if (feeRes && typeof feeRes.total_fee === 'number') {
+
         fee = feeRes.total_fee;
       } else if (feeRes && feeRes.data && typeof feeRes.data.total_fee === 'number') {
         fee = feeRes.data.total_fee;
@@ -519,8 +526,11 @@ export async function createJob(
         'API error'
       );
     }
+    // console.log('fee', fee);
+    // console.log('noOfExecutions', noOfExecutions);
     job_cost_prediction = fee * noOfExecutions;
   }
+  // console.log('job_cost_prediction', job_cost_prediction);
   // Ask user if they want to proceed
   // Since this is a library, we can't prompt in Node.js directly.
   // We'll throw an error with the fee and let the caller handle the prompt/confirmation.
@@ -546,7 +556,7 @@ export async function createJob(
     );
   }
 
-  if (Number(tgBalance) < job_cost_prediction) {
+  if (Number(tgBalanceWei) < job_cost_prediction) {
     // Check if user has enabled auto topup
     // For each job type, autotopupTG should be present in jobInput
     const autoTopupTG = (jobInput as any).autotopupTG === true;
@@ -563,6 +573,7 @@ export async function createJob(
       // autotopupTG is true, automatically top up
       const requiredTG = Math.ceil(job_cost_prediction); // 1 TG = 0.001 ETH
       try {
+        console.log('topping up TG balance', requiredTG);
         const topupResult = await topupTg(requiredTG, signer);
         if (!topupResult.success) {
           return createErrorResponse(

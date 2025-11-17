@@ -1,4 +1,5 @@
 import { ethers, Signer } from 'ethers';
+import { createContractWithSdkRpcAndSigner, resolveChainId } from './contractUtils';
 
 export interface CreateJobOnChainParams {
   jobTitle: string;
@@ -28,12 +29,22 @@ export async function createJobOnChain({
   abi,
   signer,
 }: CreateJobOnChainParams): Promise<string> {
-  const contract = new ethers.Contract(contractAddress, abi, signer);
+  // Resolve chain ID and create contract with SDK RPC provider
+  const chainId = await resolveChainId(signer);
+  const { contract, contractWithSigner } = await createContractWithSdkRpcAndSigner(
+    contractAddress,
+    abi,
+    signer,
+    chainId
+  );
 
-  const tx = await contract.createJob(jobTitle, jobType, timeFrame, targetContractAddress, encodedData);
+  // Use contractWithSigner for transaction (signing)
+  // Use contract for reading/parsing logs (SDK RPC)
+  const tx = await (contractWithSigner as any).createJob(jobTitle, jobType, timeFrame, targetContractAddress, encodedData);
   const receipt = await tx.wait();
 
   // Try to extract jobId from event logs (assume event is JobCreated(jobId,...))
+  // Use contract (with SDK RPC) for parsing logs
   const event = receipt.logs
     .map((log: any) => {
       try {
@@ -57,8 +68,15 @@ export async function deleteJobOnChain({
   abi,
   signer,
 }: DeleteJobOnChainParams): Promise<void> {
-  const contract = new ethers.Contract(contractAddress, abi.abi, signer);
+  // Resolve chain ID and create contract with SDK RPC provider
+  const chainId = await resolveChainId(signer);
+  const { contractWithSigner } = await createContractWithSdkRpcAndSigner(
+    contractAddress,
+    abi.abi || abi,
+    signer,
+    chainId
+  );
 
-  const tx = await contract.deleteJob(jobId);
+  const tx = await (contractWithSigner as any).deleteJob(jobId);
   await tx.wait();
 } 

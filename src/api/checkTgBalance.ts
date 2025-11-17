@@ -1,6 +1,10 @@
 import { ethers } from 'ethers';
 import gasRegistryAbi from '../contracts/abi/GasRegistry.json';
-import { getChainAddresses, getRpcProvider } from '../config';
+import { 
+  createContractWithSdkRpc,
+  getContractAddress,
+  resolveChainId
+} from '../contracts/contractUtils';
 import { 
   ValidationError, 
   NetworkError, 
@@ -30,57 +34,48 @@ export const checkTgBalance = async (
     }
 
     try {
-        // Try to get chainId from signer's provider if not provided
-        // If signer's provider fails, we'll use the provided chainId or return error
-        let resolvedChainId: string | undefined = chainId?.toString();
-        
-        if (!resolvedChainId) {
-            try {
-                const network = await signer.provider?.getNetwork();
-                resolvedChainId = network?.chainId ? network.chainId.toString() : undefined;
-            } catch (providerError) {
-                // If user's RPC fails, we can't get chainId from it
-                // This is expected in cases where user's RPC is down
-                console.warn('Could not get network from signer provider, using provided chainId or will fail:', providerError);
+        // Resolve chain ID (use provided chainId or resolve from signer)
+        let resolvedChainId: string;
+        try {
+            resolvedChainId = await resolveChainId(signer, chainId);
+        } catch (configError) {
+            if (configError instanceof ConfigurationError) {
+                return createErrorResponse(configError, 'Configuration error');
             }
-        }
-        
-        if (!resolvedChainId) {
             return createErrorResponse(
-                new ConfigurationError('Chain ID is required. Please provide chainId parameter or ensure signer has a working provider.'),
+                new ConfigurationError('Failed to resolve chain ID', { originalError: configError }),
                 'Configuration error'
             );
         }
 
-        const { gasRegistry } = getChainAddresses(resolvedChainId);
-        const gasRegistryContractAddress = gasRegistry;
-        
-        if (!gasRegistryContractAddress) {
+        // Get contract address
+        let gasRegistryContractAddress: string;
+        try {
+            gasRegistryContractAddress = getContractAddress(resolvedChainId, 'gasRegistry');
+        } catch (configError) {
+            if (configError instanceof ConfigurationError) {
+                return createErrorResponse(configError, 'Configuration error');
+            }
             return createErrorResponse(
-                new ConfigurationError(`GasRegistry address not configured for chain ID: ${resolvedChainId}`),
+                new ConfigurationError('Failed to get contract address', { originalError: configError }),
                 'Configuration error'
             );
         }
 
-        // Use SDK-provided RPC provider instead of user's provider
+        // Create contract instance with SDK RPC provider (read-only)
         // This ensures we can read balance even if user's RPC fails
-        const rpcProvider = getRpcProvider(resolvedChainId);
-        
-        if (!rpcProvider) {
-            return createErrorResponse(
-                new ConfigurationError(`RPC URL not configured for chain ID: ${resolvedChainId}. Cannot check balance without RPC provider.`),
-                'Configuration error'
-            );
-        }
-
-        // Create contract instance with our RPC provider (read-only)
-        const contract = new ethers.Contract(gasRegistryContractAddress, gasRegistryAbi, rpcProvider);
+        const contract = await createContractWithSdkRpc(
+            gasRegistryContractAddress,
+            gasRegistryAbi,
+            resolvedChainId,
+            signer
+        );
         
         // Get address from signer (this doesn't require provider)
         const address = await signer.getAddress();
         
         // Read balance using our RPC provider
-        const balance = await contract.balances(address);
+        const balance = await (contract as any).balances(address);
         
         // balance is likely an array or object with ethSpent and TGbalance, both in wei
         // We'll convert TGbalance from wei to ETH
