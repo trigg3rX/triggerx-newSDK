@@ -3,7 +3,8 @@ import gasRegistryAbi from '../contracts/abi/GasRegistry.json';
 import { 
   createContractWithSdkRpcAndSigner,
   getContractAddress,
-  resolveChainId
+  resolveChainId,
+  waitForTransactionReceiptWithRpcFallback
 } from '../contracts/contractUtils';
 import { 
   ValidationError, 
@@ -36,6 +37,7 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
         let gasRegistryContractAddress: string;
         let contract: ethers.BaseContract;
         let contractWithSigner: ethers.BaseContract;
+        let rpcProvider!: ethers.JsonRpcProvider;
         let resolvedChainId: string;
         let signerAddress: string;
 
@@ -58,6 +60,7 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
             );
             contract = contractInstances.contract;
             contractWithSigner = contractInstances.contractWithSigner;
+            rpcProvider = contractInstances.rpcProvider;
         } catch (configError) {
             if (configError instanceof ConfigurationError) {
                 return createErrorResponse(configError, 'Configuration error');
@@ -102,7 +105,7 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
                     gasLimit: gasWithBuffer
                 }
             );
-            await tx.wait();
+            await waitForTransactionReceiptWithRpcFallback(tx, rpcProvider);
             return { success: true, data: tx };
         } catch (gasEstimateError) {
             // If gas estimation fails, try without gas limit (let provider estimate)
@@ -111,7 +114,7 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
                 amountInEthWei,
                 { value: amountInEthWei }
             );
-            await tx.wait();
+            await waitForTransactionReceiptWithRpcFallback(tx, rpcProvider);
             return { success: true, data: tx };
         }
     } catch (error) {

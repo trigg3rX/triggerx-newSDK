@@ -108,6 +108,7 @@ export async function createContractWithSdkRpcAndSigner(
     contract: Contract;
     contractWithSigner: Contract;
     chainId: string;
+    rpcProvider: ethers.JsonRpcProvider;
 }> {
     // Resolve chain ID
     const resolvedChainId = await resolveChainId(signer, chainId);
@@ -125,7 +126,67 @@ export async function createContractWithSdkRpcAndSigner(
         contract,
         contractWithSigner,
         chainId: resolvedChainId,
+        rpcProvider,
     };
+}
+
+/**
+ * Wait for a transaction receipt, falling back to eth_getTransactionReceipt if tx.wait fails
+ * This helps when the user's wallet/provider does not implement getTransactionReceipt properly.
+ * @param tx - Transaction response returned from contract call
+ * @param rpcProvider - SDK RPC provider that supports eth_getTransactionReceipt
+ * @param options - Optional polling configuration
+ * @returns Transaction receipt once available
+ */
+export async function waitForTransactionReceiptWithRpcFallback(
+    tx: ethers.ContractTransactionResponse,
+    rpcProvider: ethers.JsonRpcProvider,
+    options?: {
+        pollIntervalMs?: number;
+        maxAttempts?: number;
+    }
+): Promise<ethers.TransactionReceipt> {
+    const pollIntervalMs = options?.pollIntervalMs ?? 3000;
+    const maxAttempts = options?.maxAttempts ?? 40;
+
+    try {
+        const directReceipt = await tx.wait();
+        if (directReceipt) {
+            return directReceipt;
+        }
+        console.warn(
+            `tx.wait() returned null receipt for ${tx.hash}; falling back to eth_getTransactionReceipt via SDK RPC provider.`
+        );
+    } catch (waitError) {
+        console.warn(
+            'tx.wait() failed; falling back to eth_getTransactionReceipt via SDK RPC provider.',
+            waitError
+        );
+    }
+
+    const txHash = tx.hash;
+    if (!txHash) {
+        throw new Error('Transaction hash missing; cannot fetch receipt');
+    }
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const receipt = await rpcProvider
+            .send('eth_getTransactionReceipt', [txHash])
+            .catch((rpcError) => {
+                console.warn('eth_getTransactionReceipt RPC call failed:', rpcError);
+                return null;
+            });
+
+        if (receipt) {
+            return receipt as ethers.TransactionReceipt;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
+
+    throw new Error(
+        `Transaction receipt not found for ${txHash} after ${maxAttempts} attempts using eth_getTransactionReceipt`
+    );
 }
 
 /**

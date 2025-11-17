@@ -24,7 +24,7 @@ async function main() {
         console.log('\n=== Creating Safe-mode Job ===');
         const safeJobInput: CreateJobInput = {
             jobType: JobType.Time,
-            argType: ArgType.Static,
+            argType: ArgType.Dynamic,
             jobTitle: 'safe-time-job-example',
             timeFrame: 3600, 
             scheduleType: 'interval',

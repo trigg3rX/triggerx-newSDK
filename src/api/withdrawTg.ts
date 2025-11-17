@@ -3,7 +3,8 @@ import gasRegistryAbi from '../contracts/abi/GasRegistry.json';
 import { 
   createContractWithSdkRpcAndSigner,
   getContractAddress,
-  resolveChainId
+  resolveChainId,
+  waitForTransactionReceiptWithRpcFallback
 } from '../contracts/contractUtils';
 import { 
   ValidationError, 
@@ -41,10 +42,14 @@ export const withdrawTg = async (
     try {
         // Resolve chain ID and create contract instances with SDK RPC provider
         let resolvedChainId: string;
-        let contractWithSigner: ethers.BaseContract;
+        let contract!: ethers.BaseContract;
+        let contractWithSigner!: ethers.BaseContract;
+        let rpcProvider!: ethers.JsonRpcProvider;
+        let signerAddress: string;
         
         try {
             // Resolve chain ID from signer
+            signerAddress = await signer.getAddress();
             resolvedChainId = await resolveChainId(signer);
             
             // Get contract address
@@ -57,7 +62,9 @@ export const withdrawTg = async (
                 signer,
                 resolvedChainId
             );
+            contract = contractInstances.contract;
             contractWithSigner = contractInstances.contractWithSigner;
+            rpcProvider = contractInstances.rpcProvider;
         } catch (configError) {
             if (configError instanceof ConfigurationError) {
                 return createErrorResponse(configError, 'Configuration error');
@@ -70,8 +77,29 @@ export const withdrawTg = async (
 
         // Assumes the contract has a function: claimEthForTg(uint256 amount)
         const amountTGWei = ethers.parseEther(amountTG.toString());
-        const tx = await (contractWithSigner as any).claimETHForTG(amountTGWei);
-        await tx.wait();
+
+        let tx;
+        try {
+            console.log('Estimating gas for claimETHForTG using SDK RPC provider...');
+            const estimatedGas: bigint = await (contract as any).claimETHForTG.estimateGas(amountTGWei, {
+                from: signerAddress,
+            });
+            console.log('Estimated gas (claimETHForTG):', estimatedGas.toString());
+            const gasWithBuffer = (estimatedGas * BigInt(110)) / BigInt(100);
+            console.log('Gas with 10% buffer (claimETHForTG):', gasWithBuffer.toString());
+
+            tx = await (contractWithSigner as any).claimETHForTG(amountTGWei, {
+                gasLimit: gasWithBuffer,
+            });
+        } catch (gasEstimateError) {
+            console.warn(
+                'Gas estimation failed for claimETHForTG (using SDK RPC), proceeding without explicit gas limit:',
+                gasEstimateError
+            );
+            tx = await (contractWithSigner as any).claimETHForTG(amountTGWei);
+        }
+
+        await waitForTransactionReceiptWithRpcFallback(tx, rpcProvider);
         return { success: true, data: tx };
     } catch (error) {
         console.error('Error withdrawing TG:', error);

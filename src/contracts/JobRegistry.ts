@@ -1,5 +1,5 @@
 import { ethers, Signer } from 'ethers';
-import { createContractWithSdkRpcAndSigner, resolveChainId } from './contractUtils';
+import { createContractWithSdkRpcAndSigner, resolveChainId, waitForTransactionReceiptWithRpcFallback } from './contractUtils';
 
 export interface CreateJobOnChainParams {
   jobTitle: string;
@@ -31,7 +31,7 @@ export async function createJobOnChain({
 }: CreateJobOnChainParams): Promise<string> {
   // Resolve chain ID and create contract with SDK RPC provider
   const chainId = await resolveChainId(signer);
-  const { contract, contractWithSigner } = await createContractWithSdkRpcAndSigner(
+  const { contract, contractWithSigner, rpcProvider } = await createContractWithSdkRpcAndSigner(
     contractAddress,
     abi,
     signer,
@@ -81,7 +81,7 @@ export async function createJobOnChain({
       encodedData
     );
   }
-  const receipt = await tx.wait();
+  const receipt = await waitForTransactionReceiptWithRpcFallback(tx, rpcProvider);
 
   // Try to extract jobId from event logs (assume event is JobCreated(jobId,...))
   // Use contract (with SDK RPC) for parsing logs
@@ -110,7 +110,7 @@ export async function deleteJobOnChain({
 }: DeleteJobOnChainParams): Promise<void> {
   // Resolve chain ID and create contract with SDK RPC provider
   const chainId = await resolveChainId(signer);
-  const { contract, contractWithSigner } = await createContractWithSdkRpcAndSigner(
+  const { contract, contractWithSigner, rpcProvider } = await createContractWithSdkRpcAndSigner(
     contractAddress,
     abi.abi || abi,
     signer,
@@ -130,13 +130,13 @@ export async function deleteJobOnChain({
     const tx = await (contractWithSigner as any).deleteJob(jobId, {
       gasLimit: gasWithBuffer,
     });
-    await tx.wait();
+    await waitForTransactionReceiptWithRpcFallback(tx, rpcProvider);
   } catch (gasEstimateError) {
     console.warn(
       'Gas estimation failed for deleteJob (using SDK RPC), proceeding without explicit gas limit:',
       gasEstimateError
     );
     const tx = await (contractWithSigner as any).deleteJob(jobId);
-    await tx.wait();
+    await waitForTransactionReceiptWithRpcFallback(tx, rpcProvider);
   }
 }
