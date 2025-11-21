@@ -46,6 +46,7 @@ export enum JobType {
   Time = 'time',
   Event = 'event',
   Condition = 'condition',
+  CustomScript = 'custom_script',
 }
 
 export enum ArgType {
@@ -66,7 +67,8 @@ export interface SafeTransaction {
 export type CreateJobInput =
   | (TimeBasedJobInput & { jobType: JobType.Time; argType: ArgType.Static | ArgType.Dynamic })
   | (EventBasedJobInput & { jobType: JobType.Event; argType: ArgType.Static | ArgType.Dynamic })
-  | (ConditionBasedJobInput & { jobType: JobType.Condition; argType: ArgType.Static | ArgType.Dynamic });
+  | (ConditionBasedJobInput & { jobType: JobType.Condition; argType: ArgType.Static | ArgType.Dynamic })
+  | (CustomScriptJobInput & { jobType: JobType.CustomScript; argType: ArgType.Dynamic });
 
 // User-facing input types (without jobType/argType)
 export interface TimeBasedJobInput {
@@ -172,6 +174,26 @@ export interface ConditionBasedJobInput {
    * Only used when walletMode is 'safe' and argType is 'static'.
    */
   safeTransactions?: SafeTransaction[];
+}
+
+export interface CustomScriptJobInput {
+  jobTitle: string;
+  timeFrame: number;
+  timeInterval: number;
+  timezone: string;
+  chainId: string;
+  targetContractAddress?: string;
+  targetFunction?: string;
+  abi?: string;
+  isImua?: boolean;
+  arguments?: string[];
+  dynamicArgumentsScriptUrl: string;
+  autotopupTG?: boolean;
+  walletMode?: WalletMode;
+  safeName?: string;
+  language: string;
+  recurring?: boolean;
+  safeAddress?: string;
 }
 
 // Internal type matching backend struct

@@ -6,6 +6,9 @@ import {
   CreateJobData,
   JobResponse,
   SafeTransaction,
+  JobType,
+  CustomScriptJobInput,
+  ArgType,
 } from '../types';
 import { createJobOnChain } from '../contracts/JobRegistry';
 import { ethers, Signer } from 'ethers';
@@ -28,6 +31,10 @@ import {
 } from '../utils/errors';
 import { enableSafeModule, ensureSingleOwnerAndMatchSigner } from '../contracts/safe/SafeWallet';
 import { createSafeWalletForUser } from '../contracts/safe/SafeFactory';
+
+const JOB_ID = '300949528249665590178224313442040528409305273634097553067152835846309150732';
+const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
+
 // Helper function to encode multisend batch transactions
 function encodeMultisendData(transactions: SafeTransaction[]): string {
   // Multisend format: for each transaction, encode as:
@@ -77,7 +84,7 @@ export function toCreateJobDataFromTime(
   jobCostPrediction: number,
 ): CreateJobData {
   return {
-    job_id: "",
+    job_id: JOB_ID,
     user_address: userAddress,
     ether_balance: balances.etherBalance,
     token_balance: balances.tokenBalanceWei,
@@ -100,11 +107,11 @@ export function toCreateJobDataFromTime(
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
-    is_imua: input.isImua ?? false,
+    is_imua: input.isImua ?? true,
     is_safe: (input as any).walletMode === 'safe',
     safe_name: (input as any).safeName || '',
     safe_address: (input as any).safeAddress || '',
-    language: (input as any).language || 'go',
+    language: (input as any).language || '',
   };
 }
 
@@ -115,7 +122,7 @@ export function toCreateJobDataFromEvent(
   jobCostPrediction: number,
 ): CreateJobData {
   return {
-    job_id: "",
+    job_id: JOB_ID,
     user_address: userAddress,
     ether_balance: balances.etherBalance,
     token_balance: balances.tokenBalanceWei,
@@ -137,11 +144,11 @@ export function toCreateJobDataFromEvent(
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
-    is_imua: input.isImua ?? false,
+    is_imua: input.isImua ?? true,
     is_safe: (input as any).walletMode === 'safe',
     safe_name: (input as any).safeName || '',
     safe_address: (input as any).safeAddress || '',
-    language: (input as any).language || 'go',
+    language: (input as any).language || '',
   };
 }
 
@@ -152,7 +159,7 @@ export function toCreateJobDataFromCondition(
   jobCostPrediction: number,
 ): CreateJobData {
   return {
-    job_id: "",
+    job_id: JOB_ID,
     user_address: userAddress,
     ether_balance: balances.etherBalance,
     token_balance: balances.tokenBalanceWei,
@@ -176,11 +183,46 @@ export function toCreateJobDataFromCondition(
     arg_type: input.dynamicArgumentsScriptUrl ? 2 : 1,
     arguments: input.arguments,
     dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
-    is_imua: input.isImua ?? false,
+    is_imua: input.isImua ?? true,
     is_safe: (input as any).walletMode === 'safe',
     safe_name: (input as any).safeName || '',
     safe_address: (input as any).safeAddress || '',
-    language: (input as any).language || 'go',
+    language: (input as any).language || '',
+  };
+}
+
+export function toCreateJobDataFromCustomScript(
+  input: CustomScriptJobInput,
+  balances: { etherBalance: bigint; tokenBalanceWei: bigint },
+  userAddress: string,
+  jobCostPrediction: number,
+): CreateJobData {
+  return {
+    job_id: JOB_ID,
+    user_address: userAddress,
+    ether_balance: balances.etherBalance,
+    token_balance: balances.tokenBalanceWei,
+    job_title: input.jobTitle,
+    task_definition_id: 7,
+    custom: true,
+    time_frame: input.timeFrame,
+    recurring: input.recurring ?? false,
+    job_cost_prediction: jobCostPrediction,
+    timezone: input.timezone,
+    created_chain_id: input.chainId,
+    target_chain_id: input.chainId,
+    target_contract_address: (input as any).targetContractAddress || '',
+    target_function: (input as any).targetFunction || '',
+    abi: (input as any).abi || '',
+    arg_type: 2,
+    arguments: input.arguments,
+    dynamic_arguments_script_url: input.dynamicArgumentsScriptUrl,
+    is_imua: input.isImua ?? true,
+    is_safe: (input as any).walletMode === 'safe',
+    safe_name: (input as any).safeName || '',
+    safe_address: (input as any).safeAddress || '',
+    language: input.language,
+    time_interval: input.timeInterval,
   };
 }
 
@@ -213,11 +255,19 @@ function encodeJobType4or6Data(recurringJob: boolean, ipfsHash: string) {
   );
 }
 
+function encodeJobType7Data(timeInterval: number, ipfsHash: string, language: string) {
+  return ethers.AbiCoder.defaultAbiCoder().encode(
+    ['uint256', 'bytes32', 'string'],
+    [timeInterval, ipfsHash, language]
+  );
+}
+
 export interface CreateJobParams {
-  jobInput: TimeBasedJobInput | EventBasedJobInput | ConditionBasedJobInput;
+  jobInput: TimeBasedJobInput | EventBasedJobInput | ConditionBasedJobInput | CustomScriptJobInput;
   signer: Signer;
   encodedData?: string;
 }
+
 
 /**
  * Create a job on the blockchain.
@@ -311,24 +361,16 @@ export async function createJob(
 
     // Auto-set module target; user does not need to pass targetContractAddress in safe mode
     (jobInput as any).targetContractAddress = safeModule;
-    // Function signature must match exactly as in ABI
-    (jobInput as any).targetFunction = 'execJobFromHub';
-    // ABI verified per provided interface and matches execJobFromHub
+    (jobInput as any).targetFunction = 'execJobFromHub(address,address,uint256,bytes,uint8)';
     (jobInput as any).abi = JSON.stringify([
       {
-        "inputs": [
-          { "internalType": "address", "name": "safeAddress", "type": "address" },
-          { "internalType": "address", "name": "actionTarget", "type": "address" },
-          { "internalType": "uint256", "name": "actionValue", "type": "uint256" },
-          { "internalType": "bytes", "name": "actionData", "type": "bytes" },
-          { "internalType": "uint8", "name": "operation", "type": "uint8" }
-        ],
-        "name": "execJobFromHub",
-        "outputs": [
-          { "internalType": "bool", "name": "success", "type": "bool" }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
+        "type": "function", "name": "execJobFromHub", "stateMutability": "nonpayable", "inputs": [
+          { "name": "safeAddress", "type": "address" },
+          { "name": "actionTarget", "type": "address" },
+          { "name": "actionValue", "type": "uint256" },
+          { "name": "actionData", "type": "bytes" },
+          { "name": "operation", "type": "uint8" }
+        ], "outputs": [{ "type": "bool", "name": "success" }]
       }
     ]);
 
@@ -352,7 +394,7 @@ export async function createJob(
           tx.to,
           tx.value,
           tx.data,
-          '0' // CALL
+          0 // CALL
         ];
       } else {
         // Multiple transactions: use multisend
@@ -368,7 +410,7 @@ export async function createJob(
           multisendCallOnly,
           '0',
           encodedMultisendData,
-          '1' // DELEGATECALL
+          1 // DELEGATECALL
         ];
       }
     } else {
@@ -420,6 +462,7 @@ export async function createJob(
     }
   }
 
+  
   // Infer jobType from jobInput
   if ('scheduleType' in jobInput) {
     jobType = jobInput.dynamicArgumentsScriptUrl ? 2 : 1; // Time-based job
@@ -427,6 +470,16 @@ export async function createJob(
     jobType = jobInput.dynamicArgumentsScriptUrl ? 4 : 3; // Event-based job
   } else {
     jobType = jobInput.dynamicArgumentsScriptUrl ? 6 : 5; // Condition-based job
+  }
+
+  const jobTypeField = (jobInput as any).jobType;
+  if (
+    jobTypeField === JobType.CustomScript ||
+    jobTypeField === 'custom_script' ||
+    jobTypeField === 7 ||
+    jobTypeField === '7'
+  ) {
+    jobType = 7;
   }
 
   // --- Generate encodedData if not provided ---
@@ -449,6 +502,13 @@ export async function createJob(
         encodedData = encodeJobType4or6Data(jobInput.recurring ?? false, ipfsBytes32);
       }
     }
+
+    // Custom script jobs
+    else if (jobType === 7) {
+      const customInput = jobInput as CustomScriptJobInput;
+      const ipfsBytes32 = ethers.id(customInput.dynamicArgumentsScriptUrl);
+      encodedData = encodeJobType7Data(customInput.timeInterval ?? 0, ipfsBytes32, customInput.language);
+    }
     // Condition-based jobs
     else {
       if (jobType === 3 || jobType === 5) {
@@ -458,6 +518,7 @@ export async function createJob(
         encodedData = encodeJobType4or6Data(jobInput.recurring ?? false, ipfsBytes32);
       }
     }
+    
   }
 
   // Handle job_cost_prediction logic based on argType (static/dynamic)
@@ -466,23 +527,30 @@ export async function createJob(
   // Determine argType directly from user input
   let argType: number = 1; // default to static
   if ('argType' in jobInput) {
-    if (jobInput.argType === 'dynamic' || jobInput.argType === 2) {
+    if (jobInput.argType === 'dynamic' || jobInput.argType === 2 || jobInput.argType === ArgType.Dynamic) {
       argType = 2;
     } else {
       argType = 1;
     }
+  }
+  if (jobType === 7) {
+    argType = 2;
+    (jobInput as any).argType = ArgType.Dynamic;
   }
 
   //if jobis time based then check the no of executions of the job from time frame and time interval by deviding time frame by time interval
   let noOfExecutions: number = 1;
   if ('scheduleType' in jobInput) {
     noOfExecutions = jobInput.timeFrame / (jobInput.timeInterval ?? 0);
+  } else if (jobType === 7) {
+    const customInterval = (jobInput as CustomScriptJobInput).timeInterval ?? 0;
+    if (customInterval > 0) {
+      noOfExecutions = Math.max(1, Math.floor(jobInput.timeFrame / customInterval));
+    }
   }
 
   // Set job_cost_prediction
-  // ethers.parseEther expects a string, so we construct the ether amount string safely
-  let job_cost_prediction: number = Number(ethers.parseEther((0.1 * noOfExecutions).toString()).toString()); // default for static
-  // console.log('job_cost_prediction', job_cost_prediction);
+  let job_cost_prediction: number = 0.1 * noOfExecutions; // default for static
 
   if (argType === 2) {
     // Dynamic: call backend API to get fee
@@ -502,13 +570,8 @@ export async function createJob(
         '/api/fees',
         { params: { ipfs_url } }
       );
-      // console.log('feeRes', feeRes);
-      // console.log('feeRes.total_fee', feeRes.total_fee);
-      // console.log('typeof feeRes', typeof feeRes);
-      // console.log('typeof feeRes.total_fee', typeof feeRes.total_fee);
       // The API now returns { total_fee: number }
       if (feeRes && typeof feeRes.total_fee === 'number') {
-
         fee = feeRes.total_fee;
       } else if (feeRes && feeRes.data && typeof feeRes.data.total_fee === 'number') {
         fee = feeRes.data.total_fee;
@@ -526,21 +589,17 @@ export async function createJob(
         'API error'
       );
     }
-    // console.log('fee', fee);
-    // console.log('noOfExecutions', noOfExecutions);
     job_cost_prediction = fee * noOfExecutions;
   }
-  // console.log('job_cost_prediction', job_cost_prediction);
   // Ask user if they want to proceed
   // Since this is a library, we can't prompt in Node.js directly.
   // We'll throw an error with the fee and let the caller handle the prompt/confirmation.
   // If you want to automate, you can add a `proceed` flag to params in the future.
 
   // Check if the user has enough TG to cover the job cost prediction
-  // Use chainId if available, so we can use SDK RPC provider even if user's RPC fails
   let tgBalanceWei: bigint, tgBalance: string;
   try {
-    const balanceResult = await checkTgBalance(signer, chainIdStr);
+    const balanceResult = await checkTgBalance(signer);
     if (!balanceResult.success || !balanceResult.data) {
       return createErrorResponse(
         new BalanceError('Failed to check TG balance', balanceResult.details),
@@ -556,7 +615,7 @@ export async function createJob(
     );
   }
 
-  if (Number(tgBalanceWei) < job_cost_prediction) {
+  if (Number(tgBalance) < job_cost_prediction) {
     // Check if user has enabled auto topup
     // For each job type, autotopupTG should be present in jobInput
     const autoTopupTG = (jobInput as any).autotopupTG === true;
@@ -573,7 +632,6 @@ export async function createJob(
       // autotopupTG is true, automatically top up
       const requiredTG = Math.ceil(job_cost_prediction); // 1 TG = 0.001 ETH
       try {
-        console.log('topping up TG balance', requiredTG);
         const topupResult = await topupTg(requiredTG, signer);
         if (!topupResult.success) {
           return createErrorResponse(
@@ -623,6 +681,8 @@ export async function createJob(
     jobData = toCreateJobDataFromTime(jobInput as TimeBasedJobInput, balances, userAddress, job_cost_prediction);
   } else if ('triggerChainId' in jobInput) {
     jobData = toCreateJobDataFromEvent(jobInput as EventBasedJobInput, balances, userAddress, job_cost_prediction);
+  } else if (jobType === 7) {
+    jobData = toCreateJobDataFromCustomScript(jobInput as CustomScriptJobInput, balances, userAddress, job_cost_prediction);
   } else {
     jobData = toCreateJobDataFromCondition(jobInput as ConditionBasedJobInput, balances, userAddress, job_cost_prediction);
   }
@@ -638,8 +698,6 @@ export async function createJob(
       token_balance: typeof jobData.token_balance === 'bigint' ? Number(jobData.token_balance) : Number(jobData.token_balance),
     } as any;
 
-    // console.log('jobDataForApi', jobDataForApi);
-
     const res = await client.post<any>(
       '/api/jobs',
       [jobDataForApi],
@@ -647,8 +705,6 @@ export async function createJob(
         headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
       }
     );
-
-
     return { success: true, data: res };
   } catch (error) {
     const httpStatusCode = extractHttpStatusCode(error);

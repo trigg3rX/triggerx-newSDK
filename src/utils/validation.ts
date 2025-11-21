@@ -3,6 +3,8 @@ import {
   TimeBasedJobInput,
   EventBasedJobInput,
   ConditionBasedJobInput,
+  CustomScriptJobInput,
+  JobType,
   SafeTransaction,
 } from '../types';
 import { ValidationError } from './errors';
@@ -286,14 +288,86 @@ export function validateConditionBasedJobInput(input: ConditionBasedJobInput, ar
   }
 }
 
-export function validateJobInput(jobInput: TimeBasedJobInput | EventBasedJobInput | ConditionBasedJobInput, argType?: 'static' | 'dynamic' | 1 | 2): void {
-  if ('scheduleType' in jobInput) {
-    validateTimeBasedJobInput(jobInput, argType);
-  } else if ('triggerChainId' in jobInput) {
-    validateEventBasedJobInput(jobInput, argType);
-  } else {
-    validateConditionBasedJobInput(jobInput, argType);
+function validateCustomScriptJobInput(input: CustomScriptJobInput): void {
+  if (!isNonEmptyString(input.jobTitle)) {
+    throw new ValidationError('jobTitle', 'Job title is required.');
   }
+  if (!input.timeFrame || input.timeFrame <= 0) {
+    throw new ValidationError('timeframe', 'Timeframe must be a positive number of seconds.');
+  }
+  if (!input.timeInterval || input.timeInterval <= 0) {
+    throw new ValidationError('timeInterval', 'timeInterval is required and must be > 0 for custom script jobs.');
+  }
+  if (input.timeInterval > input.timeFrame) {
+    throw new ValidationError('timeInterval', 'timeInterval cannot exceed the timeframe for custom script jobs.');
+  }
+  if (!isNonEmptyString(input.timezone)) {
+    throw new ValidationError('timezone', 'Timezone is required.');
+  }
+  if (!isNonEmptyString(input.chainId)) {
+    throw new ValidationError('chainId', 'Chain ID is required.');
+  }
+  if (!isNonEmptyString(input.dynamicArgumentsScriptUrl) || !isValidUrl(input.dynamicArgumentsScriptUrl)) {
+    throw new ValidationError('contractIpfs', 'dynamicArgumentsScriptUrl is required and must be a valid URL for custom script jobs.');
+  }
+  if (!isNonEmptyString(input.language)) {
+    throw new ValidationError('language', 'language is required for custom script jobs.');
+  }
+
+  // if (input.walletMode === 'safe') {
+  //   if (input.safeTransactions && input.safeTransactions.length > 0) {
+  //     throw new ValidationError('safeTransactions', 'Custom script jobs only support dynamic arguments; remove safeTransactions.');
+  //   }
+  // } else {
+  //   validateContractBasics(input.targetContractAddress, input.abi, input.targetFunction, 'contract');
+  // }
 }
 
+function isTimeBasedJobInput(jobInput: any): jobInput is TimeBasedJobInput {
+  return jobInput && typeof jobInput === 'object' && 'scheduleType' in jobInput;
+}
 
+function isEventBasedJobInput(jobInput: any): jobInput is EventBasedJobInput {
+  return jobInput && typeof jobInput === 'object' && 'triggerChainId' in jobInput;
+}
+
+function isConditionBasedJobInput(jobInput: any): jobInput is ConditionBasedJobInput {
+  return jobInput && typeof jobInput === 'object' && 'conditionType' in jobInput;
+}
+
+function isCustomScriptJobInput(jobInput: any): jobInput is CustomScriptJobInput {
+  if (!jobInput || typeof jobInput !== 'object') {
+    return false;
+  }
+  if ('scheduleType' in jobInput || 'triggerChainId' in jobInput || 'conditionType' in jobInput) {
+    return false;
+  }
+  return 'language' in jobInput && 'timeInterval' in jobInput && 'dynamicArgumentsScriptUrl' in jobInput;
+}
+
+export function validateJobInput(
+  jobInput: TimeBasedJobInput | EventBasedJobInput | ConditionBasedJobInput | CustomScriptJobInput,
+  argType?: 'static' | 'dynamic' | 1 | 2
+): void {
+  if ((jobInput as any).jobType === JobType.CustomScript || isCustomScriptJobInput(jobInput)) {
+    validateCustomScriptJobInput(jobInput as CustomScriptJobInput);
+    return;
+  }
+
+  if (isTimeBasedJobInput(jobInput)) {
+    validateTimeBasedJobInput(jobInput, argType);
+    return;
+  }
+
+  if (isEventBasedJobInput(jobInput)) {
+    validateEventBasedJobInput(jobInput, argType);
+    return;
+  }
+
+  if (isConditionBasedJobInput(jobInput)) {
+    validateConditionBasedJobInput(jobInput, argType);
+    return;
+  }
+
+  throw new ValidationError('jobType', 'Unsupported job input payload.');
+}
