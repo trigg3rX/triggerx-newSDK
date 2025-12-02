@@ -377,7 +377,7 @@ export async function createJob(
     // Handle static vs dynamic safe wallet jobs
     const hasDynamicUrl = !!(jobInput as any).dynamicArgumentsScriptUrl;
     const hasSafeTransactions = !!((jobInput as any).safeTransactions && (jobInput as any).safeTransactions.length > 0);
-    
+
     if (hasDynamicUrl) {
       // Dynamic safe wallet job - keep existing behavior
       (jobInput as any).arguments = undefined;
@@ -385,7 +385,7 @@ export async function createJob(
       // Static safe wallet job - encode transactions into arguments
       const safeTransactions = (jobInput as any).safeTransactions as SafeTransaction[];
       const safeAddress = (jobInput as any).safeAddress as string;
-      
+
       if (safeTransactions.length === 1) {
         // Single transaction: use transaction directly
         const tx = safeTransactions[0];
@@ -462,7 +462,7 @@ export async function createJob(
     }
   }
 
-  
+
   // Infer jobType from jobInput
   if ('scheduleType' in jobInput) {
     jobType = jobInput.dynamicArgumentsScriptUrl ? 2 : 1; // Time-based job
@@ -518,11 +518,12 @@ export async function createJob(
         encodedData = encodeJobType4or6Data(jobInput.recurring ?? false, ipfsBytes32);
       }
     }
-    
+
   }
 
-  // Handle job_cost_prediction logic based on argType (static/dynamic)
-  // If static, set to 0.1. If dynamic, call backend API to get fee and ask user to proceed.
+  // Handle job_cost_prediction by always calling backend /api/fees
+  // The backend returns the total fee in wei; we convert it to token units (formatted ether)
+  // so it can be compared with TG balance (which is also formatted via ethers.formatEther).
 
   // Determine argType directly from user input
   let argType: number = 1; // default to static
@@ -549,48 +550,76 @@ export async function createJob(
     }
   }
 
-  // Set job_cost_prediction
-  let job_cost_prediction: number = 0.1 * noOfExecutions; // default for static
 
-  if (argType === 2) {
-    // Dynamic: call backend API to get fee
-    const ipfs_url = jobInput.dynamicArgumentsScriptUrl;
-    if (!ipfs_url) {
-      return createErrorResponse(
-        new ValidationError('dynamicArgumentsScriptUrl', 'dynamicArgumentsScriptUrl is required for dynamic argType'),
-        'Validation error'
-      );
+  // Prepare parameters for /api/fees
+  const ipfs_url = (jobInput as any).dynamicArgumentsScriptUrl || '';
+  const task_definition_id = jobType; // use inferred jobType as task definition id
+  const target_chain_id = chainIdStr || '';
+  const target_contract_address = (jobInput as any).targetContractAddress || '';
+  const target_function = (jobInput as any).targetFunction || '';
+  const abi = (jobInput as any).abi || '';
+  const args = (jobInput as any).arguments ? JSON.stringify((jobInput as any).arguments) : '';
+
+  let job_cost_prediction: bigint = 0n;
+  try {
+    const feeRes = await client.get<any>(
+      '/api/fees',
+      {
+        params: {
+          ipfs_url,
+          task_definition_id,
+          target_chain_id,
+          target_contract_address,
+          target_function,
+          abi,
+          args,
+        }
+      }
+    );
+
+    // The API returns total fee in wei: { total_fee: "<wei>" } or nested under data
+    let totalFeeRaw: any;
+    if (feeRes && feeRes.total_fee !== undefined) {
+      totalFeeRaw = feeRes.total_fee;
+    } else if (feeRes && feeRes.data && feeRes.data.total_fee !== undefined) {
+      totalFeeRaw = feeRes.data.total_fee;
     }
 
-
-    // Call backend API to get fee
-    let fee: number = 0;
-    try {
-      const feeRes = await client.get<any>(
-        '/api/fees',
-        { params: { ipfs_url } }
-      );
-      // The API now returns { total_fee: number }
-      if (feeRes && typeof feeRes.total_fee === 'number') {
-        fee = feeRes.total_fee;
-      } else if (feeRes && feeRes.data && typeof feeRes.data.total_fee === 'number') {
-        fee = feeRes.data.total_fee;
-      } else {
-        return createErrorResponse(
-          new ApiError('Invalid response from /api/fees: missing total_fee', { response: feeRes }),
-          'API error'
-        );
-      }
-    } catch (err) {
-      const httpStatusCode = extractHttpStatusCode(err);
-      const errorCode = determineErrorCode(err, httpStatusCode);
+    if (totalFeeRaw === undefined) {
       return createErrorResponse(
-        new ApiError('Failed to fetch job cost prediction', { originalError: err, ipfs_url }, httpStatusCode),
+        new ApiError('Invalid response from /api/fees: missing total_fee', { response: feeRes }),
         'API error'
       );
     }
-    job_cost_prediction = fee * noOfExecutions;
+
+    // Support both number and string representations of wei
+    let totalFeeWei: bigint;
+    if (typeof totalFeeRaw === 'string') {
+      totalFeeWei = BigInt(totalFeeRaw);
+    } else if (typeof totalFeeRaw === 'number') {
+      totalFeeWei = BigInt(Math.floor(totalFeeRaw));
+    } else {
+      return createErrorResponse(
+        new ApiError('Invalid total_fee type from /api/fees', { totalFeeRaw }),
+        'API error'
+      );
+    }
+
+    // Convert wei to token units (formatted ether) so it matches tgBalance units
+    // job_cost_prediction = Number(ethers.formatEther(totalFeeWei));
+    job_cost_prediction = totalFeeWei;
+
+  } catch (err) {
+    const httpStatusCode = extractHttpStatusCode(err);
+    const errorCode = determineErrorCode(err, httpStatusCode);
+    return createErrorResponse(
+      new ApiError('Failed to fetch job cost prediction', { originalError: err, jobType }, httpStatusCode),
+      'API error'
+    );
   }
+
+  job_cost_prediction = job_cost_prediction * BigInt(noOfExecutions);
+  let requiredTGwei = job_cost_prediction * BigInt(1000);  // this is in wei
   // Ask user if they want to proceed
   // Since this is a library, we can't prompt in Node.js directly.
   // We'll throw an error with the fee and let the caller handle the prompt/confirmation.
@@ -615,36 +644,34 @@ export async function createJob(
     );
   }
 
-  if (Number(tgBalance) < job_cost_prediction) {
-    // Check if user has enabled auto topup
-    // For each job type, autotopupTG should be present in jobInput
-    const autoTopupTG = (jobInput as any).autotopupTG === true;
-    if (!autoTopupTG) {
-      return createErrorResponse(
-        new BalanceError(`Insufficient TG balance. Job cost prediction is ${job_cost_prediction}. Current TG balance: ${tgBalance}. Please set autotopupTG: true in jobInput.`, {
-          required: job_cost_prediction,
-          current: tgBalance,
-          autoTopupEnabled: false
-        }),
-        'Insufficient balance'
-      );
-    } else {
-      // autotopupTG is true, automatically top up
-      const requiredTG = Math.ceil(job_cost_prediction); // 1 TG = 0.001 ETH
-      try {
-        const topupResult = await topupTg(requiredTG, signer);
-        if (!topupResult.success) {
-          return createErrorResponse(
-            new BalanceError('Failed to top up TG balance', topupResult.details),
-            'Top-up error'
-          );
-        }
-      } catch (err) {
+  // Check if user has enabled auto topup
+  // For each job type, autotopupTG should be present in jobInput
+  const autoTopupTG = (jobInput as any).autotopupTG === true;
+  if (!autoTopupTG) {
+    return createErrorResponse(
+      new BalanceError(`Insufficient TG balance. Job cost prediction is ${requiredTGwei}. Current TG balance: ${tgBalanceWei}. Please set autotopupTG: true in jobInput.`, {
+        required: requiredTGwei,
+        current: tgBalanceWei,
+        autoTopupEnabled: false
+      }),
+      'Insufficient balance'
+    );
+  } else {
+    // autotopupTG is true, automatically top up
+    const requiredTG = requiredTGwei; // 1 TG = 0.001 ETH
+    try {
+      const topupResult = await topupTg(requiredTGwei, signer);
+      if (!topupResult.success) {
         return createErrorResponse(
-          new BalanceError('Failed to top up TG balance', { originalError: err, requiredTG }),
+          new BalanceError('Failed to top up TG balance', topupResult.details),
           'Top-up error'
         );
       }
+    } catch (err) {
+      return createErrorResponse(
+        new BalanceError('Failed to top up TG balance', { originalError: err, requiredTG }),
+        'Top-up error'
+      );
     }
   }
 
@@ -653,7 +680,7 @@ export async function createJob(
   const etherBalance = tokenBalanceWei / 1000n;
 
   // Patch jobInput with job_cost_prediction for downstream usage
-  (jobInput as any).jobCostPrediction = job_cost_prediction;
+  (jobInput as any).jobCostPrediction = Number(ethers.formatEther(tokenBalanceWei));  // this is in ether
 
   let jobId: string;
   try {
@@ -678,13 +705,13 @@ export async function createJob(
   let jobData: CreateJobData;
   const balances = { etherBalance, tokenBalanceWei };
   if ('scheduleType' in jobInput) {
-    jobData = toCreateJobDataFromTime(jobInput as TimeBasedJobInput, balances, userAddress, job_cost_prediction);
+    jobData = toCreateJobDataFromTime(jobInput as TimeBasedJobInput, balances, userAddress, Number(ethers.formatEther(job_cost_prediction)));
   } else if ('triggerChainId' in jobInput) {
-    jobData = toCreateJobDataFromEvent(jobInput as EventBasedJobInput, balances, userAddress, job_cost_prediction);
+    jobData = toCreateJobDataFromEvent(jobInput as EventBasedJobInput, balances, userAddress, Number(ethers.formatEther(job_cost_prediction)));
   } else if (jobType === 7) {
-    jobData = toCreateJobDataFromCustomScript(jobInput as CustomScriptJobInput, balances, userAddress, job_cost_prediction);
+    jobData = toCreateJobDataFromCustomScript(jobInput as CustomScriptJobInput, balances, userAddress, Number(ethers.formatEther(job_cost_prediction)));
   } else {
-    jobData = toCreateJobDataFromCondition(jobInput as ConditionBasedJobInput, balances, userAddress, job_cost_prediction);
+    jobData = toCreateJobDataFromCondition(jobInput as ConditionBasedJobInput, balances, userAddress, Number(ethers.formatEther(job_cost_prediction)));
   }
   // 3. Set the job_id from contract
   jobData.job_id = jobId;
