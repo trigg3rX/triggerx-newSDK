@@ -104,7 +104,7 @@ const jobInput = {
   isImua: false,                        // Optional feature flag
   arguments: ['3'],                    // Target function args as strings
   dynamicArgumentsScriptUrl: '',       // If ArgType.Dynamic, provide IPFS/URL here
-  autotopupTG: true,                   // Auto top-up TG if balance is low
+  autotopupETH: true,                  // Auto top-up ETH in GasRegistry if balance is low
 };
 
 const signer = /* ethers.Signer instance */;
@@ -140,8 +140,8 @@ const jobInput = {
   dynamicArgumentsScriptUrl: 'https://your-ipfs-gateway/ipfs/your-hash',
   language:'', //Your code language exmampel->  language:'go',
 
-  // Optional helper to auto-top up TG if low
-  autotopupTG: true,
+  // Optional helper to auto-top up ETH in GasRegistry if low
+  autotopupETH: true,
 };
 
 const result = await createJob(client, { jobInput, signer });
@@ -180,7 +180,7 @@ const jobInput = {
   dynamicArgumentsScriptUrl: 'https://your-ipfs-url', // Script URL for dynamic args
   language:'', //Your code language exmampel->  language:'go',
   isImua: false,                          // Optional feature flag
-  autotopupTG: true,                     // Auto top-up TG if balance is low
+  autotopupETH: true,                     // Auto top-up ETH in GasRegistry if balance is low
 };
 
 const result = await createJob(client, { jobInput, signer });
@@ -215,7 +215,7 @@ const jobInput = {
   arguments: ['5'],                     // Target function args as strings
   dynamicArgumentsScriptUrl: '',        // If ArgType.Dynamic, provide IPFS/URL here
   isImua: false,                         // Optional feature flag
-  autotopupTG: true,                    // Auto top-up TG if balance is low
+  autotopupETH: true,                    // Auto top-up ETH in GasRegistry if balance is low
 };
 
 const result = await createJob(client, { jobInput, signer });
@@ -266,7 +266,7 @@ const jobInput = {
       data: '0x' // empty for simple ETH transfer
     }
   ],
-  autotopupTG: true,
+  autotopupETH: true,
 };
 
 await createJob(client, { jobInput, signer });
@@ -330,7 +330,7 @@ const jobInput = {
       data: swapData
     }
   ],
-  autotopupTG: true,
+  autotopupETH: true,
 };
 
 await createJob(client, { jobInput, signer });
@@ -359,7 +359,7 @@ const jobInput = {
   safeAddress: '0xYourSafeAddress',
   dynamicArgumentsScriptUrl: 'https://your-ipfs-gateway/ipfs/your-hash',
   language:'go', //Your code language exmampel->  language:'go',
-  autotopupTG: true,
+  autotopupETH: true,
 };
 
 await createJob(client, { jobInput, signer });
@@ -456,6 +456,7 @@ Includes:
     data: string;      // Encoded function call data (hex with 0x prefix)
   }
   ```
+ - `autotopupETH` boolean flag on job inputs to automatically ensure sufficient ETH is deposited in the GasRegistry for job execution (legacy `autotopupTG` is still accepted but deprecated).
 
 ---
 
