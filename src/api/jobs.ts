@@ -13,8 +13,8 @@ import {
 import { createJobOnChain } from '../contracts/JobRegistry';
 import { ethers, Signer } from 'ethers';
 import jobRegistryAbi from '../contracts/abi/JobRegistry.json';
-import { topupTg } from './topupTg';
-import { checkTgBalance } from './checkTgBalance';
+import { depositEth } from './topupTg';
+import { checkEthBalance } from './checkTgBalance';
 import { getChainAddresses } from '../config';
 import { validateJobInput } from '../utils/validation';
 import {
@@ -523,7 +523,7 @@ export async function createJob(
 
   // Handle job_cost_prediction by always calling backend /api/fees
   // The backend returns the total fee in wei; we convert it to token units (formatted ether)
-  // so it can be compared with TG balance (which is also formatted via ethers.formatEther).
+  // so it can be compared with ETH balance (which is also formatted via ethers.formatEther).
 
   // Determine argType directly from user input
   let argType: number = 1; // default to static
@@ -619,64 +619,65 @@ export async function createJob(
   }
 
   job_cost_prediction = job_cost_prediction * BigInt(noOfExecutions);
-  let requiredTGwei = job_cost_prediction * BigInt(1000);  // this is in wei
+  let requiredETHwei = job_cost_prediction * BigInt(1000);  // this is in wei
   // Ask user if they want to proceed
   // Since this is a library, we can't prompt in Node.js directly.
   // We'll throw an error with the fee and let the caller handle the prompt/confirmation.
   // If you want to automate, you can add a `proceed` flag to params in the future.
 
-  // Check if the user has enough TG to cover the job cost prediction
-  let tgBalanceWei: bigint, tgBalance: string;
+  // Check if the user has enough ETH to cover the job cost prediction
+  let ethBalanceWei: bigint, ethBalance: string;
   try {
-    const balanceResult = await checkTgBalance(signer);
+    const balanceResult = await checkEthBalance(signer);
     if (!balanceResult.success || !balanceResult.data) {
       return createErrorResponse(
-        new BalanceError('Failed to check TG balance', balanceResult.details),
+        new BalanceError('Failed to check ETH balance', balanceResult.details),
         'Balance check error'
       );
     }
-    tgBalanceWei = balanceResult.data.tgBalanceWei;
-    tgBalance = balanceResult.data.tgBalance;
+    ethBalanceWei = balanceResult.data.ethBalanceWei;
+    ethBalance = balanceResult.data.ethBalance;
   } catch (err) {
     return createErrorResponse(
-      new BalanceError('Failed to check TG balance', { originalError: err }),
+      new BalanceError('Failed to check ETH balance', { originalError: err }),
       'Balance check error'
     );
   }
 
   // Check if user has enabled auto topup
-  // For each job type, autotopupTG should be present in jobInput
-  const autoTopupTG = (jobInput as any).autotopupTG === true;
-  if (!autoTopupTG) {
+  // For each job type, autotopupETH should be present in jobInput
+  // Support autotopupTG for backward compatibility
+  const autoTopupETH = (jobInput as any).autotopupETH === true || (jobInput as any).autotopupTG === true;
+  if (!autoTopupETH) {
     return createErrorResponse(
-      new BalanceError(`Insufficient TG balance. Job cost prediction is ${requiredTGwei}. Current TG balance: ${tgBalanceWei}. Please set autotopupTG: true in jobInput.`, {
-        required: requiredTGwei,
-        current: tgBalanceWei,
+      new BalanceError(`Insufficient ETH balance. Job cost prediction is ${requiredETHwei}. Current ETH balance: ${ethBalanceWei}. Please set autotopupETH: true in jobInput.`, {
+        required: requiredETHwei,
+        current: ethBalanceWei,
         autoTopupEnabled: false
       }),
       'Insufficient balance'
     );
   } else {
-    // autotopupTG is true, automatically top up
-    const requiredTG = requiredTGwei; // 1 TG = 0.001 ETH
+    // autotopupETH is true, automatically top up
+    const requiredETH = requiredETHwei;
     try {
-      const topupResult = await topupTg(requiredTGwei, signer);
+      const topupResult = await depositEth(requiredETHwei, signer);
       if (!topupResult.success) {
         return createErrorResponse(
-          new BalanceError('Failed to top up TG balance', topupResult.details),
+          new BalanceError('Failed to deposit ETH balance', topupResult.details),
           'Top-up error'
         );
       }
     } catch (err) {
       return createErrorResponse(
-        new BalanceError('Failed to top up TG balance', { originalError: err, requiredTG }),
+        new BalanceError('Failed to deposit ETH balance', { originalError: err, requiredETH }),
         'Top-up error'
       );
     }
   }
 
   // Compute balances to store with the job
-  const tokenBalanceWei = tgBalanceWei;
+  const tokenBalanceWei = ethBalanceWei;
   const etherBalance = tokenBalanceWei / 1000n;
 
   // Patch jobInput with job_cost_prediction for downstream usage
@@ -691,7 +692,7 @@ export async function createJob(
       targetContractAddress: targetContractAddress!,
       encodedData: encodedData || '',
       contractAddress: JOB_REGISTRY_ADDRESS,
-      abi: jobRegistryAbi.abi,
+      abi: jobRegistryAbi as any,
       signer,
     });
   } catch (err) {

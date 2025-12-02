@@ -13,13 +13,12 @@ import {
   ConfigurationError,
   createErrorResponse 
 } from '../utils/errors';
-
-export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<{ success: boolean; data?: any; error?: string; errorCode?: string; errorType?: string; details?: any }> => {
-    console.log('topping up TG balance', tgAmount);
+export const depositEth = async (ethAmount: bigint, signer: ethers.Signer): Promise<{ success: boolean; data?: any; error?: string; errorCode?: string; errorType?: string; details?: any }> => {
+    console.log('depositing ETH balance', ethAmount);
     // Validate inputs
-    if (!tgAmount || tgAmount <= 0) {
+    if (!ethAmount || ethAmount <= 0n) {
         return createErrorResponse(
-            new ValidationError('tgAmount', 'TG amount must be a positive number'),
+            new ValidationError('ethAmount', 'ETH amount must be a positive bigint'),
             'Validation error'
         );
     }
@@ -71,10 +70,9 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
             );
         }
 
-        // Each TG costs 0.001 ETH, so calculate the ETH required for the given TG amount
-        console.log('tgAmount', tgAmount);
-        const amountInEthWei = tgAmount;
-        // const amountInEthWei = ethers.parseEther(amountInEth.toString());
+        // Convert ethAmount to wei if needed
+        console.log('ethAmount', ethAmount);
+        const amountInEthWei = typeof ethAmount === 'bigint' ? ethAmount : BigInt(ethAmount);
         console.log('amountInEthWei', amountInEthWei);
         
         // Estimate gas for the transaction using SDK RPC provider
@@ -84,7 +82,7 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
             console.log('Estimating gas using SDK RPC provider...');
             // Use contract instance with SDK RPC provider for estimation
             // Specify the signer's address in the estimation options
-            estimatedGas = await (contract as any).purchaseTG.estimateGas(
+            estimatedGas = await (contract as any).depositETH.estimateGas(
                 amountInEthWei,
                 { 
                     value: amountInEthWei,
@@ -98,7 +96,7 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
             console.log('Gas with 10% buffer:', gasWithBuffer.toString());
             
             // Execute transaction using signer (for signing)
-            const tx = await (contractWithSigner as any).purchaseTG(
+            const tx = await (contractWithSigner as any).depositETH(
                 amountInEthWei,
                 { 
                     value: amountInEthWei,
@@ -110,7 +108,7 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
         } catch (gasEstimateError) {
             // If gas estimation fails, try without gas limit (let provider estimate)
             console.warn('Gas estimation failed (using SDK RPC), proceeding without gas limit:', gasEstimateError);
-            const tx = await (contractWithSigner as any).purchaseTG(
+            const tx = await (contractWithSigner as any).depositETH(
                 amountInEthWei,
                 { value: amountInEthWei }
             );
@@ -118,22 +116,22 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
             return { success: true, data: tx };
         }
     } catch (error) {
-        console.error('Error topping up TG:', error);
+        console.error('Error depositing ETH:', error);
         
         if (error instanceof Error) {
             if (error.message.includes('network') || error.message.includes('timeout')) {
                 return createErrorResponse(
-                    new NetworkError('Network error during TG top-up', { originalError: error, tgAmount }),
+                    new NetworkError('Network error during ETH deposit', { originalError: error, ethAmount }),
                     'Network error'
                 );
             } else if (error.message.includes('contract') || error.message.includes('transaction')) {
                 return createErrorResponse(
-                    new ContractError('Contract error during TG top-up', { originalError: error, tgAmount }),
+                    new ContractError('Contract error during ETH deposit', { originalError: error, ethAmount }),
                     'Contract error'
                 );
             } else if (error.message.includes('insufficient funds') || error.message.includes('balance')) {
                 return createErrorResponse(
-                    new ValidationError('balance', 'Insufficient funds for TG top-up', { originalError: error, tgAmount }),
+                    new ValidationError('balance', 'Insufficient funds for ETH deposit', { originalError: error, ethAmount }),
                     'Validation error'
                 );
             }
@@ -141,7 +139,12 @@ export const topupTg = async (tgAmount: number, signer: ethers.Signer): Promise<
         
         return createErrorResponse(
             error,
-            'Failed to top up TG'
+            'Failed to deposit ETH'
         );
     }
 };
+
+/**
+ * @deprecated Use depositEth instead. This is an alias for backward compatibility.
+ */
+export const topupTg = depositEth;

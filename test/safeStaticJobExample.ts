@@ -32,7 +32,7 @@ async function main() {
                 data: '0x'
             }
         ],
-        autotopupTG: true,
+        autotopupETH: true,
         argType: 1, // Static
         jobType: 1  // Time
     };
@@ -101,7 +101,7 @@ async function main() {
                 data: swapData
             }
         ],
-        autotopupTG: true,
+        autotopupETH: true,
         argType: 1, // Static
         jobType: 1  // Time
     };

@@ -87,6 +87,8 @@ export interface TimeBasedJobInput {
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
+  autotopupETH?: boolean;
+  /** @deprecated Use autotopupETH instead */
   autotopupTG?: boolean;
   // wallet selection
   walletMode?: WalletMode; // default: 'regular'
@@ -121,6 +123,8 @@ export interface EventBasedJobInput {
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
+  autotopupETH?: boolean;
+  /** @deprecated Use autotopupETH instead */
   autotopupTG?: boolean;
   // wallet selection
   walletMode?: WalletMode; // default: 'regular'
@@ -157,6 +161,8 @@ export interface ConditionBasedJobInput {
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl?: string;
+  autotopupETH?: boolean;
+  /** @deprecated Use autotopupETH instead */
   autotopupTG?: boolean;
   // wallet selection
   walletMode?: WalletMode; // default: 'regular'
@@ -188,6 +194,8 @@ export interface CustomScriptJobInput {
   isImua?: boolean;
   arguments?: string[];
   dynamicArgumentsScriptUrl: string;
+  autotopupETH?: boolean;
+  /** @deprecated Use autotopupETH instead */
   autotopupTG?: boolean;
   walletMode?: WalletMode;
   safeName?: string;

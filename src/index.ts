@@ -6,6 +6,7 @@ export * from './api/getjob';
 export * from './api/getUserData';
 export * from './api/checkTgBalance';
 export * from './api/topupTg';
+export * from './api/withdrawTg';
 export * from './api/deleteJob';
 export * from './api/getJobDataById';
 export * from './api/safeWallet'

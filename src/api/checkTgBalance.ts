@@ -14,17 +14,17 @@ import {
 } from '../utils/errors';
 
 /**
- * Check TG balance for a given signer using SDK-provided RPC
+ * Check ETH balance for a given signer using SDK-provided RPC
  * This function uses our own RPC provider to ensure reliable connection
  * even if the user's RPC fails
  * @param signer - ethers.Signer instance (used to get wallet address)
  * @param chainId - Optional chain ID. If not provided, will try to get from signer's provider
  * @returns Balance information or error response
  */
-export const checkTgBalance = async (
+export const checkEthBalance = async (
     signer: ethers.Signer,
     chainId?: string | number
-): Promise<{ success: boolean; data?: { tgBalanceWei: bigint; tgBalance: string }; error?: string; errorCode?: string; errorType?: string; details?: any }> => {
+): Promise<{ success: boolean; data?: { ethBalanceWei: bigint; ethBalance: string }; error?: string; errorCode?: string; errorType?: string; details?: any }> => {
     // Validate inputs
     if (!signer) {
         return createErrorResponse(
@@ -75,29 +75,14 @@ export const checkTgBalance = async (
         const address = await signer.getAddress();
         
         // Read balance using our RPC provider
-        const balance = await (contract as any).balances(address);
+        const ethBalanceWei = await (contract as any).getBalance(address);
         
-        // balance is likely an array or object with ethSpent and TGbalance, both in wei
-        // We'll convert TGbalance from wei to ETH
-        // If balance is an array: [ethSpent, TGbalance]
-        // If balance is an object: { ethSpent, TGbalance }
-        let tgBalanceWei: bigint;
-        if (Array.isArray(balance)) {
-            tgBalanceWei = balance[1] as bigint;
-        } else if (balance && balance.TGbalance !== undefined) {
-            tgBalanceWei = balance.TGbalance as bigint;
-        } else {
-            return createErrorResponse(
-                new ContractError('Unexpected balance format from contract', { balance }),
-                'Contract error'
-            );
-        }
-        
-        const tgBalance = ethers.formatEther(tgBalanceWei);
-        console.log('tgBalanceEth', tgBalance);
-        return { success: true, data: { tgBalanceWei, tgBalance } };
+        // Convert from wei to ETH
+        const ethBalance = ethers.formatEther(ethBalanceWei);
+        console.log('ethBalance', ethBalance);
+        return { success: true, data: { ethBalanceWei, ethBalance } };
     } catch (error) {
-        console.error('Error checking TG balance:', error);
+        console.error('Error checking ETH balance:', error);
         
         if (error instanceof Error) {
             if (error.message.includes('network') || error.message.includes('timeout')) {
@@ -115,7 +100,12 @@ export const checkTgBalance = async (
         
         return createErrorResponse(
             error,
-            'Failed to check TG balance'
+            'Failed to check ETH balance'
         );
     }
 };
+
+/**
+ * @deprecated Use checkEthBalance instead. This is an alias for backward compatibility.
+ */
+export const checkTgBalance = checkEthBalance;

@@ -15,14 +15,14 @@ import {
 } from '../utils/errors';
 
 /**
- * Withdraw ETH in exchange for TG tokens.
+ * Withdraw ETH from the Gas Registry.
  * @param signer ethers.Signer instance
- * @param amountTG The amount of TG tokens to withdraw (as a string or BigNumberish)
+ * @param amountETH The amount of ETH to withdraw (as a string or BigNumberish)
  * @returns The transaction object or error response
  */
-export const withdrawTg = async (
+export const withdrawEth = async (
     signer: ethers.Signer,
-    amountTG: string | ethers.BigNumberish
+    amountETH: string | ethers.BigNumberish
 ): Promise<{ success: boolean; data?: any; error?: string; errorCode?: string; errorType?: string; details?: any }> => {
     // Validate inputs
     if (!signer) {
@@ -32,9 +32,9 @@ export const withdrawTg = async (
         );
     }
 
-    if (!amountTG || (typeof amountTG === 'string' && amountTG.trim() === '') || Number(amountTG) <= 0) {
+    if (!amountETH || (typeof amountETH === 'string' && amountETH.trim() === '') || Number(amountETH) <= 0) {
         return createErrorResponse(
-            new ValidationError('amountTG', 'Amount must be a positive number'),
+            new ValidationError('amountETH', 'Amount must be a positive number'),
             'Validation error'
         );
     }
@@ -75,49 +75,49 @@ export const withdrawTg = async (
             );
         }
 
-        // Assumes the contract has a function: claimEthForTg(uint256 amount)
-        const amountTGWei = ethers.parseEther(amountTG.toString());
+        // Assumes the contract has a function: withdrawETHBalance(uint256 amount)
+        const amountETHWei = ethers.parseEther(amountETH.toString());
 
         let tx;
         try {
-            console.log('Estimating gas for claimETHForTG using SDK RPC provider...');
-            const estimatedGas: bigint = await (contract as any).claimETHForTG.estimateGas(amountTGWei, {
+            console.log('Estimating gas for withdrawETHBalance using SDK RPC provider...');
+            const estimatedGas: bigint = await (contract as any).withdrawETHBalance.estimateGas(amountETHWei, {
                 from: signerAddress,
             });
-            console.log('Estimated gas (claimETHForTG):', estimatedGas.toString());
+            console.log('Estimated gas (withdrawETHBalance):', estimatedGas.toString());
             const gasWithBuffer = (estimatedGas * BigInt(110)) / BigInt(100);
-            console.log('Gas with 10% buffer (claimETHForTG):', gasWithBuffer.toString());
+            console.log('Gas with 10% buffer (withdrawETHBalance):', gasWithBuffer.toString());
 
-            tx = await (contractWithSigner as any).claimETHForTG(amountTGWei, {
+            tx = await (contractWithSigner as any).withdrawETHBalance(amountETHWei, {
                 gasLimit: gasWithBuffer,
             });
         } catch (gasEstimateError) {
             console.warn(
-                'Gas estimation failed for claimETHForTG (using SDK RPC), proceeding without explicit gas limit:',
+                'Gas estimation failed for withdrawETHBalance (using SDK RPC), proceeding without explicit gas limit:',
                 gasEstimateError
             );
-            tx = await (contractWithSigner as any).claimETHForTG(amountTGWei);
+            tx = await (contractWithSigner as any).withdrawETHBalance(amountETHWei);
         }
 
         await waitForTransactionReceiptWithRpcFallback(tx, rpcProvider);
         return { success: true, data: tx };
     } catch (error) {
-        console.error('Error withdrawing TG:', error);
+        console.error('Error withdrawing ETH:', error);
         
         if (error instanceof Error) {
             if (error.message.includes('network') || error.message.includes('timeout')) {
                 return createErrorResponse(
-                    new NetworkError('Network error during TG withdrawal', { originalError: error, amountTG }),
+                    new NetworkError('Network error during ETH withdrawal', { originalError: error, amountETH }),
                     'Network error'
                 );
             } else if (error.message.includes('contract') || error.message.includes('transaction')) {
                 return createErrorResponse(
-                    new ContractError('Contract error during TG withdrawal', { originalError: error, amountTG }),
+                    new ContractError('Contract error during ETH withdrawal', { originalError: error, amountETH }),
                     'Contract error'
                 );
             } else if (error.message.includes('insufficient') || error.message.includes('balance')) {
                 return createErrorResponse(
-                    new ValidationError('balance', 'Insufficient TG balance for withdrawal', { originalError: error, amountTG }),
+                    new ValidationError('balance', 'Insufficient ETH balance for withdrawal', { originalError: error, amountETH }),
                     'Validation error'
                 );
             }
@@ -125,7 +125,12 @@ export const withdrawTg = async (
         
         return createErrorResponse(
             error,
-            'Failed to withdraw TG'
+            'Failed to withdraw ETH'
         );
     }
 };
+
+/**
+ * @deprecated Use withdrawEth instead. This is an alias for backward compatibility.
+ */
+export const withdrawTg = withdrawEth;
