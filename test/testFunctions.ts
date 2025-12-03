@@ -120,7 +120,7 @@ async function main() {
 
     // Test 5: Withdraw ETH (optional - comment out if you don't want to withdraw)
     console.log('--- Test 5: Withdraw ETH (Optional) ---');
-    const ethAmountToWithdraw = ethers.formatEther(100n); // Amount of ETH to withdraw
+    const ethAmountToWithdraw = 100n; // Amount of ETH to withdraw (in wei)
     try {
         console.log(`Attempting to withdraw ${ethAmountToWithdraw} wei...`);
         const txWithdraw = await withdrawEth(signer, ethAmountToWithdraw);

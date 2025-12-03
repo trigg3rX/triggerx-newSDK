@@ -1,17 +1,17 @@
 import { ethers } from 'ethers';
 import gasRegistryAbi from '../contracts/abi/GasRegistry.json';
-import { 
-  createContractWithSdkRpcAndSigner,
-  getContractAddress,
-  resolveChainId,
-  waitForTransactionReceiptWithRpcFallback
+import {
+    createContractWithSdkRpcAndSigner,
+    getContractAddress,
+    resolveChainId,
+    waitForTransactionReceiptWithRpcFallback
 } from '../contracts/contractUtils';
-import { 
-  ValidationError, 
-  NetworkError, 
-  ContractError, 
-  ConfigurationError,
-  createErrorResponse 
+import {
+    ValidationError,
+    NetworkError,
+    ContractError,
+    ConfigurationError,
+    createErrorResponse
 } from '../utils/errors';
 
 /**
@@ -22,7 +22,7 @@ import {
  */
 export const withdrawEth = async (
     signer: ethers.Signer,
-    amountETH: string | ethers.BigNumberish
+    amountETHwei: string | ethers.BigNumberish
 ): Promise<{ success: boolean; data?: any; error?: string; errorCode?: string; errorType?: string; details?: any }> => {
     // Validate inputs
     if (!signer) {
@@ -32,9 +32,9 @@ export const withdrawEth = async (
         );
     }
 
-    if (!amountETH || (typeof amountETH === 'string' && amountETH.trim() === '') || Number(amountETH) <= 0) {
+    if (!amountETHwei || (typeof amountETHwei === 'string' && amountETHwei.trim() === '') || Number(amountETHwei) <= 0) {
         return createErrorResponse(
-            new ValidationError('amountETH', 'Amount must be a positive number'),
+            new ValidationError('amountETHwei', 'Amount must be a positive number'),
             'Validation error'
         );
     }
@@ -46,15 +46,15 @@ export const withdrawEth = async (
         let contractWithSigner!: ethers.BaseContract;
         let rpcProvider!: ethers.JsonRpcProvider;
         let signerAddress: string;
-        
+
         try {
             // Resolve chain ID from signer
             signerAddress = await signer.getAddress();
             resolvedChainId = await resolveChainId(signer);
-            
+
             // Get contract address
             const gasRegistryContractAddress = getContractAddress(resolvedChainId, 'gasRegistry');
-            
+
             // Create contract instances with SDK RPC provider
             const contractInstances = await createContractWithSdkRpcAndSigner(
                 gasRegistryContractAddress,
@@ -75,20 +75,17 @@ export const withdrawEth = async (
             );
         }
 
-        // Assumes the contract has a function: withdrawETHBalance(uint256 amount)
-        const amountETHWei = ethers.parseEther(amountETH.toString());
-
         let tx;
         try {
             console.log('Estimating gas for withdrawETHBalance using SDK RPC provider...');
-            const estimatedGas: bigint = await (contract as any).withdrawETHBalance.estimateGas(amountETHWei, {
+            const estimatedGas: bigint = await (contract as any).withdrawETHBalance.estimateGas(amountETHwei, {
                 from: signerAddress,
             });
             console.log('Estimated gas (withdrawETHBalance):', estimatedGas.toString());
             const gasWithBuffer = (estimatedGas * BigInt(110)) / BigInt(100);
             console.log('Gas with 10% buffer (withdrawETHBalance):', gasWithBuffer.toString());
 
-            tx = await (contractWithSigner as any).withdrawETHBalance(amountETHWei, {
+            tx = await (contractWithSigner as any).withdrawETHBalance(amountETHwei, {
                 gasLimit: gasWithBuffer,
             });
         } catch (gasEstimateError) {
@@ -96,33 +93,33 @@ export const withdrawEth = async (
                 'Gas estimation failed for withdrawETHBalance (using SDK RPC), proceeding without explicit gas limit:',
                 gasEstimateError
             );
-            tx = await (contractWithSigner as any).withdrawETHBalance(amountETHWei);
+            tx = await (contractWithSigner as any).withdrawETHBalance(amountETHwei);
         }
 
         await waitForTransactionReceiptWithRpcFallback(tx, rpcProvider);
         return { success: true, data: tx };
     } catch (error) {
         console.error('Error withdrawing ETH:', error);
-        
+
         if (error instanceof Error) {
             if (error.message.includes('network') || error.message.includes('timeout')) {
                 return createErrorResponse(
-                    new NetworkError('Network error during ETH withdrawal', { originalError: error, amountETH }),
+                    new NetworkError('Network error during ETH withdrawal', { originalError: error, amountETHwei }),
                     'Network error'
                 );
             } else if (error.message.includes('contract') || error.message.includes('transaction')) {
                 return createErrorResponse(
-                    new ContractError('Contract error during ETH withdrawal', { originalError: error, amountETH }),
+                    new ContractError('Contract error during ETH withdrawal', { originalError: error, amountETHwei }),
                     'Contract error'
                 );
             } else if (error.message.includes('insufficient') || error.message.includes('balance')) {
                 return createErrorResponse(
-                    new ValidationError('balance', 'Insufficient ETH balance for withdrawal', { originalError: error, amountETH }),
+                    new ValidationError('balance', 'Insufficient ETH balance for withdrawal', { originalError: error, amountETHwei }),
                     'Validation error'
                 );
             }
         }
-        
+
         return createErrorResponse(
             error,
             'Failed to withdraw ETH'
