@@ -11,10 +11,10 @@ async function main() {
     // Note: Both checkEthBalance and depositEth now use SDK-provided RPC for network calls
     //       Your signer is still used for transaction signing in depositEth
     //       This ensures reliable operation even if your RPC provider fails
-    const chainId = '11155420'; // Optimism Sepolia
-    const providerUrl = 'https://opt-sepolia.g.alchemy.com/v2/m7cIDXzatSUYoiuE1xSY_TnUrK5j9-1W';
+    const chainId = '84532'; // Optimism Sepolia
+    const providerUrl = 'https://base-sepolia.g.alchemy.com/v2/m7cIDXzatSUYoiuE1xSY_TnUrK5j9-1W';
     const privateKey = process.env.PRIVATE_KEY;
-    
+
     if (!privateKey) {
         console.error('PRIVATE_KEY not found in environment variables');
         return;
@@ -22,9 +22,10 @@ async function main() {
 
     const provider = new ethers.JsonRpcProvider(providerUrl);
     const signer = new ethers.Wallet(privateKey as string, provider);
-    
+
     console.log('=== Testing ETH Balance and Deposit Functions ===');
-    console.log('Wallet Address:', await signer.getAddress());
+    const userAddress = await signer.getAddress();
+    console.log('Wallet Address:', userAddress);
     console.log('Chain ID:', chainId);
     console.log('Note: Functions use SDK RPC provider for network calls');
     console.log('      Your signer is used for transaction signing');
@@ -34,7 +35,7 @@ async function main() {
     // This uses SDK-provided RPC, so it works even if user's RPC fails
     console.log('--- Test 1: Check ETH Balance (with chainId, uses SDK RPC) ---');
     try {
-        const balance = await checkEthBalance(signer, chainId);
+        const balance = await checkEthBalance(userAddress, chainId);
         if (balance.success && balance.data) {
             console.log('✅ ETH Balance Check Successful');
             console.log('   ETH Balance (Wei):', balance.data.ethBalanceWei.toString());
@@ -50,31 +51,30 @@ async function main() {
     }
     console.log('');
 
-    // Test 2: Check ETH Balance without chainId (will try to get from signer's provider)
-    // This demonstrates backward compatibility
-    console.log('--- Test 2: Check ETH Balance (without chainId, uses signer provider) ---');
-    try {
-        const balance = await checkEthBalance(signer);
-        if (balance.success && balance.data) {
-            console.log('✅ ETH Balance Check Successful');
-            console.log('   ETH Balance (Wei):', balance.data.ethBalanceWei.toString());
-            console.log('   ETH Balance (ETH):', balance.data.ethBalance);
-        } else {
-            console.error('❌ ETH Balance Check Failed:', balance.error);
-            if (balance.details) {
-                console.error('   Details:', balance.details);
-            }
-        }
-    } catch (error) {
-        console.error('❌ Error checking ETH balance:', error);
-    }
+    // Test 2: Check ETH Balance without chainId - REMOVED as chainId is now required
+    // console.log('--- Test 2: Check ETH Balance (without chainId, uses signer provider) ---');
+    // try {
+    //     const balance = await checkEthBalance(signer);
+    //     if (balance.success && balance.data) {
+    //         console.log('✅ ETH Balance Check Successful');
+    //         console.log('   ETH Balance (Wei):', balance.data.ethBalanceWei.toString());
+    //         console.log('   ETH Balance (ETH):', balance.data.ethBalance);
+    //     } else {
+    //         console.error('❌ ETH Balance Check Failed:', balance.error);
+    //         if (balance.details) {
+    //             console.error('   Details:', balance.details);
+    //         }
+    //     }
+    // } catch (error) {
+    //     console.error('❌ Error checking ETH balance:', error);
+    // }
     console.log('');
 
     // Test 3: Deposit ETH
     // This uses SDK-provided RPC, so it works even if user's RPC fails
     // The contract uses SDK RPC, but the user's signer is used for transaction signing
     console.log('--- Test 3: Deposit ETH (uses SDK RPC, user signer for signing) ---');
-    const ethAmountToDeposit = 100; // Amount of ETH in wei to deposit
+    const ethAmountToDeposit = BigInt(100); // Amount of ETH in wei to deposit
     try {
         console.log(`Attempting to deposit ${ethAmountToDeposit} wei...`);
         console.log('   Note: Using SDK RPC provider for network calls');
@@ -94,10 +94,15 @@ async function main() {
     }
     console.log('');
 
+    // Wait for state propagation
+    console.log('Waiting 5 seconds for state propagation...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('');
+
     // Test 4: Check ETH Balance after deposit
     console.log('--- Test 4: Check ETH Balance After Deposit ---');
     try {
-        const balance = await checkEthBalance(signer, chainId);
+        const balance = await checkEthBalance(userAddress, chainId);
         if (balance.success && balance.data) {
             console.log('✅ ETH Balance Check Successful');
             console.log('   ETH Balance (Wei):', balance.data.ethBalanceWei.toString());
@@ -115,7 +120,7 @@ async function main() {
 
     // Test 5: Withdraw ETH (optional - comment out if you don't want to withdraw)
     console.log('--- Test 5: Withdraw ETH (Optional) ---');
-    const ethAmountToWithdraw = 100; // Amount of ETH in wei to withdraw
+    const ethAmountToWithdraw = ethers.formatEther(100n); // Amount of ETH to withdraw
     try {
         console.log(`Attempting to withdraw ${ethAmountToWithdraw} wei...`);
         const txWithdraw = await withdrawEth(signer, ethAmountToWithdraw);
@@ -133,10 +138,15 @@ async function main() {
     }
     console.log('');
 
+    // Wait for state propagation
+    console.log('Waiting 5 seconds for state propagation...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('');
+
     // Test 6: Check ETH Balance after withdrawal
     console.log('--- Test 6: Check ETH Balance After Withdrawal ---');
     try {
-        const balance = await checkEthBalance(signer, chainId);
+        const balance = await checkEthBalance(userAddress, chainId);
         if (balance.success && balance.data) {
             console.log('✅ ETH Balance Check Successful');
             console.log('   ETH Balance (Wei):', balance.data.ethBalanceWei.toString());
@@ -160,7 +170,7 @@ async function main() {
     try {
         // Even if we provide an invalid/broken provider, checkEthBalance should still work
         // because it uses SDK RPC when chainId is provided
-        const balance = await checkEthBalance(signer, chainId);
+        const balance = await checkEthBalance(userAddress, chainId);
         if (balance.success && balance.data) {
             console.log('✅ Balance check successful using SDK RPC');
             console.log('   ETH Balance (ETH):', balance.data.ethBalance);

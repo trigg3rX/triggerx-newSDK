@@ -1,16 +1,16 @@
 import { ethers } from 'ethers';
 import gasRegistryAbi from '../contracts/abi/GasRegistry.json';
-import { 
-  createContractWithSdkRpc,
-  getContractAddress,
-  resolveChainId
+import {
+    createContractWithSdkRpc,
+    getContractAddress,
+    resolveChainId
 } from '../contracts/contractUtils';
-import { 
-  ValidationError, 
-  NetworkError, 
-  ContractError, 
-  ConfigurationError,
-  createErrorResponse 
+import {
+    ValidationError,
+    NetworkError,
+    ContractError,
+    ConfigurationError,
+    createErrorResponse
 } from '../utils/errors';
 
 /**
@@ -22,31 +22,27 @@ import {
  * @returns Balance information or error response
  */
 export const checkEthBalance = async (
-    signer: ethers.Signer,
-    chainId?: string | number
+    userAddress: string,
+    chainId: string | number
 ): Promise<{ success: boolean; data?: { ethBalanceWei: bigint; ethBalance: string }; error?: string; errorCode?: string; errorType?: string; details?: any }> => {
     // Validate inputs
-    if (!signer) {
+    if (!userAddress || typeof userAddress !== 'string') {
         return createErrorResponse(
-            new ValidationError('signer', 'Signer is required'),
+            new ValidationError('userAddress', 'User address is required and must be a string'),
+            'Validation error'
+        );
+    }
+
+    if (!chainId) {
+        return createErrorResponse(
+            new ValidationError('chainId', 'Chain ID is required'),
             'Validation error'
         );
     }
 
     try {
-        // Resolve chain ID (use provided chainId or resolve from signer)
-        let resolvedChainId: string;
-        try {
-            resolvedChainId = await resolveChainId(signer, chainId);
-        } catch (configError) {
-            if (configError instanceof ConfigurationError) {
-                return createErrorResponse(configError, 'Configuration error');
-            }
-            return createErrorResponse(
-                new ConfigurationError('Failed to resolve chain ID', { originalError: configError }),
-                'Configuration error'
-            );
-        }
+        // Resolve chain ID
+        const resolvedChainId = chainId.toString();
 
         // Get contract address
         let gasRegistryContractAddress: string;
@@ -67,23 +63,19 @@ export const checkEthBalance = async (
         const contract = await createContractWithSdkRpc(
             gasRegistryContractAddress,
             gasRegistryAbi,
-            resolvedChainId,
-            signer
+            resolvedChainId
         );
-        
-        // Get address from signer (this doesn't require provider)
-        const address = await signer.getAddress();
-        
+
         // Read balance using our RPC provider
-        const ethBalanceWei = await (contract as any).getBalance(address);
-        
+        const ethBalanceWei = await (contract as any).getBalance(userAddress);
+
         // Convert from wei to ETH
         const ethBalance = ethers.formatEther(ethBalanceWei);
         console.log('ethBalance', ethBalance);
         return { success: true, data: { ethBalanceWei, ethBalance } };
     } catch (error) {
         console.error('Error checking ETH balance:', error);
-        
+
         if (error instanceof Error) {
             if (error.message.includes('network') || error.message.includes('timeout')) {
                 return createErrorResponse(
@@ -97,7 +89,7 @@ export const checkEthBalance = async (
                 );
             }
         }
-        
+
         return createErrorResponse(
             error,
             'Failed to check ETH balance'

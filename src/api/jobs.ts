@@ -542,7 +542,7 @@ export async function createJob(
   //if jobis time based then check the no of executions of the job from time frame and time interval by deviding time frame by time interval
   let noOfExecutions: number = 1;
   if ('scheduleType' in jobInput) {
-    noOfExecutions = jobInput.timeFrame / (jobInput.timeInterval ?? 0);
+    noOfExecutions = Math.ceil(jobInput.timeFrame / (jobInput.timeInterval ?? 1));
   } else if (jobType === 7) {
     const customInterval = (jobInput as CustomScriptJobInput).timeInterval ?? 0;
     if (customInterval > 0) {
@@ -619,7 +619,7 @@ export async function createJob(
   }
 
   job_cost_prediction = job_cost_prediction * BigInt(noOfExecutions);
-  let requiredETHwei = job_cost_prediction * BigInt(1000);  // this is in wei
+  let requiredETHwei = job_cost_prediction;  // this is in wei
   // Ask user if they want to proceed
   // Since this is a library, we can't prompt in Node.js directly.
   // We'll throw an error with the fee and let the caller handle the prompt/confirmation.
@@ -628,7 +628,7 @@ export async function createJob(
   // Check if the user has enough ETH to cover the job cost prediction
   let ethBalanceWei: bigint, ethBalance: string;
   try {
-    const balanceResult = await checkEthBalance(signer);
+    const balanceResult = await checkEthBalance(userAddress, chainIdStr!);
     if (!balanceResult.success || !balanceResult.data) {
       return createErrorResponse(
         new BalanceError('Failed to check ETH balance', balanceResult.details),
@@ -678,7 +678,7 @@ export async function createJob(
 
   // Compute balances to store with the job
   const tokenBalanceWei = ethBalanceWei;
-  const etherBalance = tokenBalanceWei / 1000n;
+  const etherBalance = tokenBalanceWei;
 
   // Patch jobInput with job_cost_prediction for downstream usage
   (jobInput as any).jobCostPrediction = Number(ethers.formatEther(tokenBalanceWei));  // this is in ether

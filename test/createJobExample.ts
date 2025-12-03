@@ -10,7 +10,7 @@ async function main() {
 
     // Set up your wallet and provider
     const privateKey = process.env.PRIVATE_KEY;
-    const providerUrl = 'https://opt-sepolia.g.alchemy.com/v2/m7cIDXzatSUYoiuE1xSY_TnUrK5j9-1W';
+    const providerUrl = 'https://base-sepolia.g.alchemy.com/v2/m7cIDXzatSUYoiuE1xSY_TnUrK5j9-1W';
 
     // const providerUrl = 'https://sepolia-rollup.arbitrum.io/rpc'; // Arbitrum Sepolia
     const provider = new ethers.JsonRpcProvider(providerUrl);
@@ -26,11 +26,11 @@ async function main() {
             jobType: JobType.Time,
             argType: ArgType.Dynamic,
             jobTitle: 'safe-time-job-example',
-            timeFrame: 3600, 
+            timeFrame: 36, 
             scheduleType: 'interval',
-            timeInterval: 900, 
+            timeInterval: 30, 
             timezone: 'UTC',
-            chainId: '11155420', // Arbitrum Sepolia
+            chainId: '84532', // Arbitrum Sepolia
             isImua: false,
             targetContractAddress: '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
             targetFunction: 'execJobFromHub',
@@ -51,7 +51,7 @@ async function main() {
                   "type": "function"
                 }
               ]),
-            dynamicArgumentsScriptUrl: 'https://ipfs.io/ipfs/bafkreihqng7dovxgqah4a5rhoh2oaeg7ilzwfgbm3m7mvdkf7vxignv2u4',
+            dynamicArgumentsScriptUrl: 'https://ipfs.io/ipfs/bafkreidpwqyuev5vzpodttc4kt5tl6gk6ycjztacsya45ilhvx26s4ysgq',
             autotopupETH: true,
             // safeName:'nipun-safe',
             // safeAddress: '0xEe611960FC1250eE885A487D981876b63373aa16',

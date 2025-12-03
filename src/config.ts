@@ -22,7 +22,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
   // TESTNET CONFIGURATIONS
   // OP Sepolia (11155420) - Optimism Sepolia Testnet
   '11155420': {
-    gasRegistry: '0x664CB20BCEEc9416D290AC820e5446e61a5c75e4',
+    gasRegistry: '0x248E9f1B99F1AC8068254233D1F271ed0e0903D6',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
     safeFactory: '0x04359eDC46Cd6C6BD7F6359512984222BE10F8Be',
     safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
@@ -31,7 +31,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
   },
   // Ethereum Sepolia (11155111) - Ethereum Sepolia Testnet
   '11155111': {
-    gasRegistry: '0x664CB20BCEEc9416D290AC820e5446e61a5c75e4',
+    gasRegistry: '0x248E9f1B99F1AC8068254233D1F271ed0e0903D6',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
     safeFactory: '0xdf76E2A796a206D877086c717979054544B1D9Bc',
     safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
@@ -40,7 +40,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
   },
   // Arbitrum Sepolia (421614) - Arbitrum Sepolia Testnet
   '421614': {
-    gasRegistry: '0x664CB20BCEEc9416D290AC820e5446e61a5c75e4',
+    gasRegistry: '0x248E9f1B99F1AC8068254233D1F271ed0e0903D6',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
     safeFactory: '0x04359eDC46Cd6C6BD7F6359512984222BE10F8Be',
     safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
@@ -50,7 +50,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
   },
   // Base Sepolia (84532) - Base Sepolia Testnet
   '84532': {
-    gasRegistry: '0x664CB20BCEEc9416D290AC820e5446e61a5c75e4',
+    gasRegistry: '0x248E9f1B99F1AC8068254233D1F271ed0e0903D6',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
     safeFactory: '0x04359eDC46Cd6C6BD7F6359512984222BE10F8Be',
     safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
@@ -61,7 +61,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
   // MAINNET CONFIGURATIONS
   // Arbitrum One (42161) - Mainnet
   '42161': {
-    gasRegistry: '0x93dDB2307F3Af5df85F361E5Cddd898Acd3d132d',
+    gasRegistry: '0xe2AC670F7D66c69D547A44D08F9bA1Fc0Fc0f991',
     jobRegistry: '0xAf1189aFd1F1880F09AeC3Cbc32cf415c735C710',
     multisendCallOnly: '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
     rpcUrl: 'https://arb1.arbitrum.io/rpc',
