@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
-import { depositEth } from '../src/api/topupTg';
-import { checkEthBalance } from '../src/api/checkTgBalance';
-import { withdrawEth } from '../src/api/withdrawTg';
+import { depositEth } from '../src/api/topup';
+import { checkEthBalance } from '../src/api/checkBalance';
+import { withdrawEth } from '../src/api/withdraw';
 import dotenv from 'dotenv';
 dotenv.config();
 

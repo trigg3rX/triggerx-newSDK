@@ -13,8 +13,8 @@ import {
 import { createJobOnChain } from '../contracts/JobRegistry';
 import { ethers, Signer } from 'ethers';
 import jobRegistryAbi from '../contracts/abi/JobRegistry.json';
-import { depositEth } from './topupTg';
-import { checkEthBalance } from './checkTgBalance';
+import { depositEth } from './topup';
+import { checkEthBalance } from './checkBalance';
 import { getChainAddresses } from '../config';
 import { validateJobInput } from '../utils/validation';
 import {

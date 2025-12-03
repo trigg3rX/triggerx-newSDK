@@ -4,9 +4,9 @@ export * from './types';
 export * from './api/jobs';
 export * from './api/getjob';
 export * from './api/getUserData';
-export * from './api/checkTgBalance';
-export * from './api/topupTg';
-export * from './api/withdrawTg';
+export * from './api/checkBalance';
+export * from './api/topup';
+export * from './api/withdraw';
 export * from './api/deleteJob';
 export * from './api/getJobDataById';
 export * from './api/safeWallet'
