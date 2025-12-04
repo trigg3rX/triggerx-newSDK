@@ -550,7 +550,8 @@ export async function createJob(
     }
   }
 
-
+  let requiredETH: any;
+  let maxtotalFeeRaw: any;
   // Prepare parameters for /api/fees
   const ipfs_url = (jobInput as any).dynamicArgumentsScriptUrl || '';
   const task_definition_id = jobType; // use inferred jobType as task definition id
@@ -579,11 +580,13 @@ export async function createJob(
 
     // The API returns total fee in wei: { total_fee: "<wei>" } or nested under data
     let totalFeeRaw: any;
-    if (feeRes && feeRes.total_fee !== undefined) {
-      totalFeeRaw = feeRes.total_fee;
-    } else if (feeRes && feeRes.data && feeRes.data.total_fee !== undefined) {
-      totalFeeRaw = feeRes.data.total_fee;
+    if (feeRes && feeRes.current_total_fee !== undefined) {
+      totalFeeRaw = feeRes.current_total_fee;
+    } else if (feeRes && feeRes.data && feeRes.data.current_total_fee !== undefined) {
+      totalFeeRaw = feeRes.data.current_total_fee;
     }
+
+    maxtotalFeeRaw=feeRes.total_fee;
 
     if (totalFeeRaw === undefined) {
       return createErrorResponse(
@@ -659,7 +662,9 @@ export async function createJob(
     );
   } else {
     // autotopupETH is true, automatically top up
-    const requiredETH = requiredETHwei;
+    // Calculate requiredETH as 1.2x the predicted job cost (in wei) using bigint math to avoid precision loss,
+    // ensuring requiredETH is returned in the JobResponse (see types.ts).
+    requiredETH = (requiredETHwei * 12n) / 10n; // 1.2x in bigint
     try {
       const topupResult = await depositEth(requiredETHwei, signer);
       if (!topupResult.success) {
@@ -733,6 +738,9 @@ export async function createJob(
         headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
       }
     );
+    res.requiredETH = requiredETH;
+    res.maxtotalFeeRaw = maxtotalFeeRaw;
+
     return { success: true, data: res };
   } catch (error) {
     const httpStatusCode = extractHttpStatusCode(error);

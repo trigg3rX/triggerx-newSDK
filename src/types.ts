@@ -247,6 +247,8 @@ export interface CreateJobData {
 export interface JobResponse {
   success: boolean;
   data?: any;
+  requiredETH?: bigint;
+  maxtotalFeeRaw?: bigint;
   error?: string;
   errorCode?: ApiErrorCode;
   httpStatusCode?: HttpStatusCode;
