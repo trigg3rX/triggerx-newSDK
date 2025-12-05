@@ -63,6 +63,8 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
   '42161': {
     gasRegistry: '0xe2AC670F7D66c69D547A44D08F9bA1Fc0Fc0f991',
     jobRegistry: '0xAf1189aFd1F1880F09AeC3Cbc32cf415c735C710',
+    safeFactory: '0x93528Df5984231059Cf5c5f2CE9b85c59250D096',
+    safeModule: '0x100656372C821539651f5905Ca39b7C95f9AA433',
     multisendCallOnly: '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
     rpcUrl: 'https://arb1.arbitrum.io/rpc',
   },
