@@ -580,15 +580,15 @@ export async function createJob(
 
     // The API returns total fee in wei: { total_fee: "<wei>" } or nested under data
     let totalFeeRaw: any;
-    if (feeRes && feeRes.current_total_fee !== undefined) {
+    if (feeRes && feeRes.current_total_fee !== undefined && feeRes.current_total_fee !== 0) {
       totalFeeRaw = feeRes.current_total_fee;
-    } else if (feeRes && feeRes.data && feeRes.data.current_total_fee !== undefined) {
+    } else if (feeRes && feeRes.data && feeRes.data.current_total_fee !== undefined && feeRes.data.current_total_fee !== 0) {
       totalFeeRaw = feeRes.data.current_total_fee;
     }
 
     maxtotalFeeRaw=feeRes.total_fee;
 
-    if (totalFeeRaw === undefined) {
+    if (totalFeeRaw === undefined || totalFeeRaw === 0) {
       return createErrorResponse(
         new ApiError('Invalid response from /api/fees: missing total_fee', { response: feeRes }),
         'API error'
