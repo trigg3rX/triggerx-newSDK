@@ -31,6 +31,7 @@ import {
 } from '../utils/errors';
 import { enableSafeModule, ensureSingleOwnerAndMatchSigner } from '../contracts/safe/SafeWallet';
 import { createSafeWalletForUser } from '../contracts/safe/SafeFactory';
+import { generateTraceId } from '../utils/traceId';
 
 const JOB_ID = '300949528249665590178224313442040528409305273634097553067152835846309150732';
 const DYNAMIC_ARGS_URL = 'https://teal-random-koala-993.mypinata.cloud/ipfs/bafkreif426p7t7takzhw3g6we2h6wsvf27p5jxj3gaiynqf22p3jvhx4la';
@@ -563,6 +564,9 @@ export async function createJob(
 
   let job_cost_prediction: bigint = 0n;
   try {
+    // Generate trace ID for /api/fees request
+    const feesTraceId = generateTraceId('get', '/api/fees', userAddress);
+
     const feeRes = await client.get<any>(
       '/api/fees',
       {
@@ -574,7 +578,10 @@ export async function createJob(
           target_function,
           abi,
           args,
-        }
+        },
+        headers: {
+          'X-Trace-ID': feesTraceId,
+        },
       }
     );
 
@@ -586,7 +593,7 @@ export async function createJob(
       totalFeeRaw = feeRes.data.current_total_fee;
     }
 
-    maxtotalFeeRaw=feeRes.total_fee;
+    maxtotalFeeRaw = feeRes.total_fee;
 
     if (totalFeeRaw === undefined || totalFeeRaw === 0) {
       return createErrorResponse(
@@ -731,11 +738,18 @@ export async function createJob(
       token_balance: typeof jobData.token_balance === 'bigint' ? Number(jobData.token_balance) : Number(jobData.token_balance),
     } as any;
 
+    // Generate trace ID for /api/jobs request
+    const jobsTraceId = generateTraceId('post', '/api/jobs', userAddress);
+
     const res = await client.post<any>(
       '/api/jobs',
       [jobDataForApi],
       {
-        headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-KEY': apiKey,
+          'X-Trace-ID': jobsTraceId,
+        },
       }
     );
     res.requiredETH = requiredETH;
