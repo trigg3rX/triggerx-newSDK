@@ -361,8 +361,9 @@ export async function createJob(
     }
 
     // Auto-set module target; user does not need to pass targetContractAddress in safe mode
+    // New ABI: execJobFromHub(safeAddress, actionTarget, actionValue, actionData, operation, jobOwner)
     (jobInput as any).targetContractAddress = safeModule;
-    (jobInput as any).targetFunction = 'execJobFromHub(address,address,uint256,bytes,uint8)';
+    (jobInput as any).targetFunction = 'execJobFromHub';
     (jobInput as any).abi = JSON.stringify([
       {
         "type": "function", "name": "execJobFromHub", "stateMutability": "nonpayable", "inputs": [
@@ -370,7 +371,8 @@ export async function createJob(
           { "name": "actionTarget", "type": "address" },
           { "name": "actionValue", "type": "uint256" },
           { "name": "actionData", "type": "bytes" },
-          { "name": "operation", "type": "uint8" }
+          { "name": "operation", "type": "uint8" },
+          { "name": "jobOwner", "type": "address" }
         ], "outputs": [{ "type": "bool", "name": "success" }]
       }
     ]);
@@ -395,7 +397,8 @@ export async function createJob(
           tx.to,
           tx.value,
           tx.data,
-          0 // CALL
+          0, // CALL
+          userAddress
         ];
       } else {
         // Multiple transactions: use multisend
@@ -411,7 +414,8 @@ export async function createJob(
           multisendCallOnly,
           '0',
           encodedMultisendData,
-          1 // DELEGATECALL
+          1, // DELEGATECALL
+          userAddress
         ];
       }
     } else {
