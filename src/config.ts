@@ -25,7 +25,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
     gasRegistry: '0x248E9f1B99F1AC8068254233D1F271ed0e0903D6',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
     safeFactory: '0x04359eDC46Cd6C6BD7F6359512984222BE10F8Be',
-    safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
+    safeModule: '0xe90B66CDC6d3Da2F97cc4AA9e2ea24EA9EEd4cDB',
     multisendCallOnly: '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
     rpcUrl: 'https://sepolia.optimism.io',
   },
@@ -34,7 +34,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
     gasRegistry: '0x248E9f1B99F1AC8068254233D1F271ed0e0903D6',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
     safeFactory: '0xdf76E2A796a206D877086c717979054544B1D9Bc',
-    safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
+    safeModule: '0xe90B66CDC6d3Da2F97cc4AA9e2ea24EA9EEd4cDB',
     multisendCallOnly: '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
     rpcUrl: 'https://rpc.sepolia.org',
   },
@@ -43,7 +43,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
     gasRegistry: '0x248E9f1B99F1AC8068254233D1F271ed0e0903D6',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
     safeFactory: '0x04359eDC46Cd6C6BD7F6359512984222BE10F8Be',
-    safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
+    safeModule: '0xe90B66CDC6d3Da2F97cc4AA9e2ea24EA9EEd4cDB',
     multisendCallOnly: '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
     rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
     // safeSingleton can be provided per deployment (Safe or SafeL2)
@@ -53,7 +53,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
     gasRegistry: '0x248E9f1B99F1AC8068254233D1F271ed0e0903D6',
     jobRegistry: '0x476ACc7949a95e31144cC84b8F6BC7abF0967E4b',
     safeFactory: '0x04359eDC46Cd6C6BD7F6359512984222BE10F8Be',
-    safeModule:  '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
+    safeModule: '0xe90B66CDC6d3Da2F97cc4AA9e2ea24EA9EEd4cDB',
     multisendCallOnly: '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
     rpcUrl: 'https://sepolia.base.org',
   },
@@ -64,7 +64,7 @@ export const CONTRACT_ADDRESSES_BY_CHAIN: Record<string, {
     gasRegistry: '0xe2AC670F7D66c69D547A44D08F9bA1Fc0Fc0f991',
     jobRegistry: '0xAf1189aFd1F1880F09AeC3Cbc32cf415c735C710',
     safeFactory: '0x93528Df5984231059Cf5c5f2CE9b85c59250D096',
-    safeModule: '0x100656372C821539651f5905Ca39b7C95f9AA433',
+    safeModule: '0x91d317d9D4d9F1402ababD4456c28b5B1eC841E4',
     multisendCallOnly: '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
     rpcUrl: 'https://arb1.arbitrum.io/rpc',
   },
@@ -89,20 +89,20 @@ export function getRpcProvider(chainId: string | number | undefined): ethers.Jso
   if (!rpcUrl) {
     return null;
   }
-  
+
   // Convert chainId to number for network configuration
   const chainIdNum = chainId ? Number(chainId) : undefined;
-  
+
   if (!chainIdNum) {
     // If no chainId, create provider without network (will auto-detect)
     return new ethers.JsonRpcProvider(rpcUrl);
   }
-  
+
   // Create a Network object with the chainId to explicitly set the network
   // This prevents the provider from trying to auto-detect the network,
   // which can cause timeouts when the RPC is slow or unresponsive
   const network = ethers.Network.from(chainIdNum);
-  
+
   // Create provider with explicit network to skip network detection
   // This prevents timeout issues when RPC is slow or unresponsive
   return new ethers.JsonRpcProvider(rpcUrl, network);

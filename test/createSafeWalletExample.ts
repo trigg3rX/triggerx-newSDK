@@ -10,7 +10,7 @@ async function main() {
     // Set up your wallet and provider
     const privateKey = '';
     
-    const providerUrl = 'https://sepolia-rollup.arbitrum.io/rpc'; // Arbitrum Sepolia
+    const providerUrl = 'https://sepolia.base.org'; // Arbitrum Sepolia
     const provider = new ethers.JsonRpcProvider(providerUrl);
     const signer = new ethers.Wallet(privateKey, provider);
     

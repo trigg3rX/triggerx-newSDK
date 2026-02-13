@@ -26,36 +26,16 @@ async function main() {
             jobType: JobType.Time,
             argType: ArgType.Dynamic,
             jobTitle: 'safe-time-job-example',
-            timeFrame: 36, 
+            timeFrame: 360000, 
             scheduleType: 'interval',
-            timeInterval: 30, 
+            timeInterval: 1800, 
             timezone: 'UTC',
             chainId: '84532', // Arbitrum Sepolia
             isImua: false,
-            targetContractAddress: '0xa0bC1477cfc452C05786262c377DE51FB8bc4669',
-            targetFunction: 'execJobFromHub',
-            abi: JSON.stringify([
-                {
-                  "inputs": [
-                    { "internalType": "address", "name": "safeAddress", "type": "address" },
-                    { "internalType": "address", "name": "actionTarget", "type": "address" },
-                    { "internalType": "uint256", "name": "actionValue", "type": "uint256" },
-                    { "internalType": "bytes", "name": "actionData", "type": "bytes" },
-                    { "internalType": "uint8", "name": "operation", "type": "uint8" }
-                  ],
-                  "name": "execJobFromHub",
-                  "outputs": [
-                    { "internalType": "bool", "name": "success", "type": "bool" }
-                  ],
-                  "stateMutability": "nonpayable",
-                  "type": "function"
-                }
-              ]),
             dynamicArgumentsScriptUrl: 'https://ipfs.io/ipfs/bafkreidpwqyuev5vzpodttc4kt5tl6gk6ycjztacsya45ilhvx26s4ysgq',
             autotopupETH: true,
-            // safeName:'nipun-safe',
-            // safeAddress: '0xEe611960FC1250eE885A487D981876b63373aa16',
-            walletMode: 'regular',
+            safeAddress: '0x87EB883e8ae00120EF2c6Fd49b1F8A149E2172f4',
+            walletMode: 'safe',
             language:'go',
         };
 
