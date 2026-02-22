@@ -582,6 +582,7 @@ export async function createJob(
           target_function,
           abi,
           args,
+          job_owner_address: walletModePre === 'safe' ? userAddress : undefined,
         },
         headers: {
           'X-Trace-ID': feesTraceId,

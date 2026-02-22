@@ -26,9 +26,9 @@ async function main() {
             jobType: JobType.Time,
             argType: ArgType.Dynamic,
             jobTitle: 'safe-time-job-example',
-            timeFrame: 360000, 
+            timeFrame: 36, 
             scheduleType: 'interval',
-            timeInterval: 1800, 
+            timeInterval: 31, 
             timezone: 'UTC',
             chainId: '84532', // Arbitrum Sepolia
             isImua: false,

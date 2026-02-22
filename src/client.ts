@@ -9,8 +9,8 @@ export class TriggerXClient {
     this.apiKey = apiKey; // Initialize the apiKey
     // const baseConfig = getConfig();
     this.client = axios.create({
-      baseURL: 'https://data.triggerx.network',  
-      // baseURL: 'http://192.168.1.50:9002', //'https://data.triggerx.network',
+      // baseURL: 'https://data.triggerx.network',  
+      baseURL: 'http://192.168.1.52:9002', //'https://data.triggerx.network',
       headers: { 'Authorization': `Bearer ${this.apiKey}` }, // Set the API key here
       timeout: 120000, // 120 second timeout
       ...config,
